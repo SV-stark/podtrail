@@ -34,10 +34,7 @@ fun EnhancedEpisodeListScreen(
     onBack: () -> Unit,
     onDetails: (EpisodeListItem) -> Unit
 ) {
-    val pagingItems = vm.episodesForPaging(podcastId).collectAsLazyPagingItems()
-    
-    // Explicitly specify types to help compiler
-    val items: androidx.paging.compose.LazyPagingItems<EpisodeListItem> = pagingItems
+    val episodes by vm.episodesFor(podcastId).collectAsState(initial = emptyList())
     val sortOption by vm.sortOption.collectAsState()
     
     // Selection state
@@ -144,28 +141,24 @@ fun EnhancedEpisodeListScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
-                            count = items.itemCount,
-                            key = items.itemKey { it.id },
-                            contentType = items.itemContentType { "episode" }
-                        ) { index ->
-                            val episode = items[index]
-                            if (episode != null) {
-                                EnhancedEpisodeCard(
-                                    episode = episode,
-                                    isSelectionMode = isSelectionMode,
-                                    isSelected = episode.id in selectedEpisodes,
-                                    showNewBadge = false,
-                                    onToggle = { vm.setListened(episode, !episode.listened) },
-                                    onSelect = { 
-                                        selectedEpisodes = if (episode.id in selectedEpisodes) {
-                                            selectedEpisodes - episode.id
-                                        } else {
-                                            selectedEpisodes + episode.id
-                                        }
-                                    },
-                                    onDetails = { onDetails(episode) }
-                                )
-                            }
+                            items = episodes,
+                            key = { it.id }
+                        ) { episode ->
+                            EnhancedEpisodeCard(
+                                episode = episode,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = episode.id in selectedEpisodes,
+                                showNewBadge = false,
+                                onToggle = { vm.setListened(episode, !episode.listened) },
+                                onSelect = { 
+                                    selectedEpisodes = if (episode.id in selectedEpisodes) {
+                                        selectedEpisodes - episode.id
+                                    } else {
+                                        selectedEpisodes + episode.id
+                                    }
+                                },
+                                onDetails = { onDetails(episode) }
+                            )
                         }
                     }
                 }
