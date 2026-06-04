@@ -41,6 +41,7 @@ import com.stark.podtrail.data.AppSettings
 import com.stark.podtrail.data.PodcastWithStats
 import com.stark.podtrail.data.SettingsRepository
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun ProfileScreen(
@@ -50,6 +51,7 @@ fun ProfileScreen(
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    var selectedBadgeForShare by remember { mutableStateOf<com.stark.podtrail.ui.Badge?>(null) }
     
     // Stats from VM
     val podcasts by vm.podcasts.collectAsState()
@@ -369,7 +371,7 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             badges.forEach { badge ->
-                 BadgeCard(badge)
+                 BadgeCard(badge, onClick = { selectedBadgeForShare = badge })
             }
         }
 
@@ -480,6 +482,12 @@ fun ProfileScreen(
         
         Spacer(Modifier.height(32.dp))
 
+        // --- Heatmap Section ---
+        val history by vm.history.collectAsState()
+        ListeningHeatmap(history)
+
+        Spacer(Modifier.height(32.dp))
+
         // --- Weekly Activity ---
         val weeklyActivity by vm.weeklyActivity.collectAsState()
         WeeklyActivityChart(weeklyActivity)
@@ -530,6 +538,9 @@ fun ProfileScreen(
                     }
                 }
             }
+        }
+        if (selectedBadgeForShare != null) {
+            BadgeShareDialog(badge = selectedBadgeForShare!!, onDismiss = { selectedBadgeForShare = null })
         }
         
         Spacer(Modifier.height(48.dp))
@@ -703,13 +714,13 @@ fun StatCard(
 }
 
 @Composable
-fun BadgeCard(badge: com.stark.podtrail.ui.Badge) {
+fun BadgeCard(badge: com.stark.podtrail.ui.Badge, onClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (badge.unlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
         ),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.width(110.dp).height(130.dp)
+        modifier = Modifier.width(110.dp).height(130.dp).clickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -740,6 +751,210 @@ fun BadgeCard(badge: com.stark.podtrail.ui.Badge) {
                 fontWeight = if (badge.unlocked) FontWeight.Bold else FontWeight.Normal,
                 color = if (badge.unlocked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+fun BadgeShareDialog(badge: com.stark.podtrail.ui.Badge, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Achievement Unlocked!", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (badge.unlocked) badge.icon else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                Text(
+                    badge.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Text(
+                    badge.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                
+                if (!badge.unlocked) {
+                    Spacer(Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Lock, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Locked", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val shareText = if (badge.unlocked) {
+                        "I unlocked the '${badge.name}' achievement on PodTrack! 🎧\n\n${badge.description}\n\nJoin me in tracking your podcast journey!"
+                    } else {
+                        "I'm working on unlocking the '${badge.name}' achievement on PodTrack! 🎧\n\n${badge.description}"
+                    }
+                    val sendIntent = android.content.Intent().apply {
+                        action = android.content.Intent.ACTION_SEND
+                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                        type = "text/plain"
+                    }
+                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Share Achievement")
+                    context.startActivity(shareIntent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Share Achievement")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+fun ListeningHeatmap(history: List<com.stark.podtrail.data.Episode>) {
+    val context = LocalContext.current
+    val heatmapData = remember(history) {
+        val result = mutableListOf<Pair<Long, Int>>()
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.WEEK_OF_YEAR, -11)
+        cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.SUNDAY)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        
+        val startMillis = cal.timeInMillis
+        val oneDayMillis = 24 * 3600 * 1000L
+        
+        for (i in 0 until 84) {
+            val dayStart = startMillis + i * oneDayMillis
+            val dayEnd = dayStart + oneDayMillis
+            val count = history.count { ep ->
+                val listenedTime = ep.listenedAt ?: 0L
+                listenedTime in dayStart until dayEnd
+            }
+            result.add(Pair(dayStart, count))
+        }
+        result
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        SectionHeader("Activity Heatmap")
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Last 12 weeks of logging activity",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    for (week in 0 until 12) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            for (day in 0 until 7) {
+                                val index = week * 7 + day
+                                val item = heatmapData.getOrNull(index) ?: Pair(0L, 0)
+                                val date = java.util.Date(item.first)
+                                val count = item.second
+                                
+                                val color = when {
+                                    count == 0 -> MaterialTheme.colorScheme.surfaceVariant
+                                    count in 1..2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                    count in 3..4 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(color)
+                                        .clickable {
+                                            val dateString = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault()).format(date)
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "Logged $count episodes on $dateString",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Less", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.surfaceVariant))
+                    Spacer(Modifier.width(2.dp))
+                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)))
+                    Spacer(Modifier.width(2.dp))
+                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)))
+                    Spacer(Modifier.width(2.dp))
+                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
+                    Spacer(Modifier.width(4.dp))
+                    Text("More", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }
