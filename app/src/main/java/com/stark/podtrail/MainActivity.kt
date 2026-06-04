@@ -8,7 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -242,9 +242,8 @@ fun PodTrackApp() {
                 composable(Screen.Calendar.route) { CalendarScreen(vm, onEpisodeClick = { e -> navController.navigate(Screen.EpisodeDetail.createRoute(e.id)) }) }
                 composable(Screen.Profile.route) {
                      val mainActivity = LocalContext.current as MainActivity
-                     ProfileScreen(vm, mainActivity.settingsRepo, com.stark.podtrail.data.AppSettings()) 
-                     // AppSettings will be handled internally by ProfileScreen or passed correctly.
-                     // The previous implementation had it passed from state.
+                     val appSettings by mainActivity.settingsRepo.settings.collectAsState(initial = com.stark.podtrail.data.AppSettings())
+                     ProfileScreen(vm, mainActivity.settingsRepo, appSettings) 
                 }
                 composable(Screen.Settings.route) {
                     val mainActivity = LocalContext.current as MainActivity

@@ -58,6 +58,7 @@ class FeedParser @Inject constructor() {
 
         var currentTag: String? = null
         var inItem = false
+        var inImage = false
 
         // Podcast level
         var pTitle: String? = null
@@ -81,7 +82,11 @@ class FeedParser @Inject constructor() {
                     currentTag = parser.name
                     if (currentTag == "item") {
                         inItem = true
-                    } else if (currentTag == "itunes:image" || currentTag == "image") {
+                    } else if (currentTag == "image") {
+                        inImage = true
+                        val url = parser.getAttributeValue(null, "href") ?: ""
+                        if (url.isNotEmpty()) pImage = url
+                    } else if (currentTag == "itunes:image") {
                         val url = parser.getAttributeValue(null, "href") ?: ""
                         if (inItem) {
                             if (url.isNotEmpty()) eImage = url
@@ -113,6 +118,7 @@ class FeedParser @Inject constructor() {
                             when (currentTag) {
                                 "title" -> pTitle = text
                                 "description", "itunes:summary" -> pDesc = text
+                                "url" -> if (inImage) pImage = text
                             }
                         }
                     }
@@ -135,6 +141,8 @@ class FeedParser @Inject constructor() {
                         eTitle = null; eGuid = null; eAudio = null; ePubDate = null
                         eImage = null; eDuration = null; eDesc = null; eNumber = null
                         inItem = false
+                    } else if (parser.name == "image") {
+                        inImage = false
                     } else if (parser.name == "channel") {
                         podcast = ParsedPodcast(pTitle, pImage, pDesc, pGenre)
                     }

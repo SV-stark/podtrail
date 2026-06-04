@@ -30,5 +30,7 @@ data class Episode(
     val listened: Boolean = false,
     val listenedAt: Long? = null,
     val playbackPosition: Long = 0,
-    val lastPlayedTimestamp: Long = 0
+    val lastPlayedTimestamp: Long = 0,
+    val userRating: Int? = null,
+    val userNotes: String? = null
 )

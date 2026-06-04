@@ -17,7 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.unit.sp
@@ -113,7 +113,47 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingMedium())
             ) {
 
-                // ... (Continue Listening and Up Next items)
+                // 1. Continue Listening
+                if (continueListening.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Continue Listening",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = ResponsiveDimensions.spacingSmall())
+                        )
+                        Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingSmall()),
+                            contentPadding = PaddingValues(horizontal = ResponsiveDimensions.spacingSmall())
+                        ) {
+                            items(continueListening) { ep ->
+                                ContinueListeningCard(episode = ep, onClick = { onOpenEpisode(ep) })
+                            }
+                        }
+                    }
+                }
+
+                // 2. Up Next (On Deck)
+                if (onDeck.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Up Next",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = ResponsiveDimensions.spacingSmall())
+                        )
+                        Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingSmall()),
+                            contentPadding = PaddingValues(horizontal = ResponsiveDimensions.spacingSmall())
+                        ) {
+                            items(onDeck) { ep ->
+                                UpNextCard(episode = ep, onClick = { onOpenEpisode(ep) })
+                            }
+                        }
+                    }
+                }
                 
                 // 3. All Podcasts Header
                 item {
@@ -135,7 +175,7 @@ fun HomeScreen(
                         // View Toggle
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(
-                                imageVector = if (isGridView) Icons.Default.List else Icons.Default.GridView,
+                                imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
                                 contentDescription = "Switch View"
                             )
                         }

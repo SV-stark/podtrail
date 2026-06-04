@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,7 +52,7 @@ fun StorageManagementScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
             Text(
                 text = "Storage Management",
@@ -243,7 +244,7 @@ fun CleanupOptionCard(
         CleanupOption.TRUNCATE_DESCRIPTIONS -> CleanupDisplayInfo(
             "Truncate Long Descriptions",
             "Limit episode descriptions to 200 characters to save space",
-            Icons.Default.TextSnippet,
+            Icons.AutoMirrored.Filled.TextSnippet,
             true
         )
         CleanupOption.REMOVE_INACTIVE_PODCASTS -> CleanupDisplayInfo(

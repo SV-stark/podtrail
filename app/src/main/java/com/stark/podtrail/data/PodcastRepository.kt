@@ -287,6 +287,14 @@ class PodcastRepository @Inject constructor(
             playbackPosition = if (listened) 0 else episode.playbackPosition
         ))
     }
+    
+    suspend fun updateEpisodeRatingAndNotes(episodeId: Long, rating: Int?, notes: String?) {
+        val fullEpisode = dao.getEpisodeById(episodeId) ?: return
+        dao.updateEpisode(fullEpisode.copy(
+            userRating = rating,
+            userNotes = notes
+        ))
+    }
 
     suspend fun deletePodcast(podcastId: Long) {
         dao.deletePodcast(podcastId)
@@ -313,5 +321,57 @@ class PodcastRepository @Inject constructor(
         if (count > 0) {
             refreshAllPodcasts()
         }
+    }
+
+    suspend fun markEpisodesListenedBatch(episodeIds: Collection<Long>, listened: Boolean) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        for (id in episodeIds) {
+            val fullEpisode = dao.getEpisodeById(id) ?: continue
+            dao.updateEpisode(fullEpisode.copy(
+                listened = listened,
+                listenedAt = if (listened) now else null,
+                lastPlayedTimestamp = if (listened) now else fullEpisode.lastPlayedTimestamp,
+                playbackPosition = if (listened) 0 else fullEpisode.playbackPosition
+            ))
+        }
+    }
+
+    suspend fun clearEpisodesTrackingBatch(episodeIds: Collection<Long>) = withContext(Dispatchers.IO) {
+        for (id in episodeIds) {
+            val fullEpisode = dao.getEpisodeById(id) ?: continue
+            dao.updateEpisode(fullEpisode.copy(
+                listened = false,
+                listenedAt = null,
+                playbackPosition = 0,
+                userRating = null,
+                userNotes = null
+            ))
+        }
+    }
+
+    fun getAllPlaylistCollections(): Flow<List<PlaylistCollection>> = dao.getAllPlaylistCollections()
+
+    fun getEpisodesInPlaylist(collectionName: String): Flow<List<Episode>> = dao.getEpisodesInPlaylist(collectionName)
+
+    suspend fun createPlaylistCollection(name: String, description: String? = null) = withContext(Dispatchers.IO) {
+        dao.insertPlaylistCollection(PlaylistCollection(name = name, description = description))
+    }
+
+    suspend fun deletePlaylistCollection(collectionId: Long) = withContext(Dispatchers.IO) {
+        dao.deletePlaylistCollection(collectionId)
+    }
+
+    suspend fun addEpisodeToPlaylist(episodeId: Long, playlistName: String) = withContext(Dispatchers.IO) {
+        dao.insertPlaylist(Playlist(name = playlistName, episodeId = episodeId))
+    }
+
+    suspend fun addEpisodesToPlaylistBatch(episodeIds: Collection<Long>, playlistName: String) = withContext(Dispatchers.IO) {
+        episodeIds.forEach { id ->
+            dao.insertPlaylist(Playlist(name = playlistName, episodeId = id))
+        }
+    }
+
+    suspend fun removeEpisodeFromPlaylist(episodeId: Long) = withContext(Dispatchers.IO) {
+        dao.removeFromPlaylist(episodeId)
     }
 }

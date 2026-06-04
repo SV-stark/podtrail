@@ -185,7 +185,7 @@ fun EpisodeSortMenu(
                 focusedContainerColor = MaterialTheme.colorScheme.surface
             ),
             modifier = Modifier
-                .menuAnchor()
+                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
                 .fillMaxWidth()
         )
         

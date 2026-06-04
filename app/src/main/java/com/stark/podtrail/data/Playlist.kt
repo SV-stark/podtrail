@@ -11,6 +11,9 @@ import androidx.room3.*
             childColumns = ["episodeId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index(value = ["episodeId"])
     ]
 )
 data class Playlist(

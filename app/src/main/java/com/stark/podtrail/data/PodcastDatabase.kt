@@ -8,7 +8,7 @@ import androidx.room3.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
-@Database(entities = [Podcast::class, Episode::class, Playlist::class, PlaylistCollection::class], version = 9, exportSchema = false)
+@Database(entities = [Podcast::class, Episode::class, Playlist::class, PlaylistCollection::class], version = 10, exportSchema = false)
 abstract class PodcastDatabase : RoomDatabase() {
     abstract fun podcastDao(): PodcastDao
 
@@ -21,7 +21,7 @@ abstract class PodcastDatabase : RoomDatabase() {
                     PodcastDatabase::class.java,
                     "podtrack.db"
                 )
-                .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .build().also { INSTANCE = it }
             }
 
@@ -63,5 +63,12 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `playlists` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `episodeId` INTEGER NOT NULL, `position` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`episodeId`) REFERENCES `episodes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
         connection.execSQL("CREATE TABLE IF NOT EXISTS `playlist_collections` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `createdAt` INTEGER NOT NULL, `position` INTEGER NOT NULL DEFAULT 0)")
         connection.execSQL("CREATE INDEX IF NOT EXISTS index_playlists_episodeId ON playlists(episodeId)")
+    }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override suspend fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE episodes ADD COLUMN userRating INTEGER DEFAULT NULL")
+        connection.execSQL("ALTER TABLE episodes ADD COLUMN userNotes TEXT DEFAULT NULL")
     }
 }

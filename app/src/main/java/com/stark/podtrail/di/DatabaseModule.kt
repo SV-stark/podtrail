@@ -8,6 +8,7 @@ import com.stark.podtrail.data.MIGRATION_5_6
 import com.stark.podtrail.data.MIGRATION_6_7
 import com.stark.podtrail.data.MIGRATION_7_8
 import com.stark.podtrail.data.MIGRATION_8_9
+import com.stark.podtrail.data.MIGRATION_9_10
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +28,7 @@ object DatabaseModule {
             PodcastDatabase::class.java,
             "podtrack.db"
         )
-        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
         .build()
     }
 

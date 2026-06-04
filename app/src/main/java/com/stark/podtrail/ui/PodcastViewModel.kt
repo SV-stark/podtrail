@@ -7,6 +7,8 @@ import com.stark.podtrail.data.Episode
 import com.stark.podtrail.data.EpisodeListItem
 import com.stark.podtrail.data.SortOption
 import com.stark.podtrail.data.SettingsRepository
+import com.stark.podtrail.data.Playlist
+import com.stark.podtrail.data.PlaylistCollection
 import com.stark.podtrail.network.ItunesPodcastSearcher
 import com.stark.podtrail.network.SearchResult
 import kotlinx.coroutines.flow.*
@@ -286,5 +288,58 @@ class PodcastViewModel @Inject constructor(
     
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun updateEpisodeRatingAndNotes(episodeId: Long, rating: Int?, notes: String?) {
+        viewModelScope.launch {
+            repo.updateEpisodeRatingAndNotes(episodeId, rating, notes)
+        }
+    }
+
+    val playlistCollections = repo.getAllPlaylistCollections()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun createPlaylistCollection(name: String, description: String? = null) {
+        viewModelScope.launch {
+            repo.createPlaylistCollection(name, description)
+        }
+    }
+
+    fun deletePlaylistCollection(collectionId: Long) {
+        viewModelScope.launch {
+            repo.deletePlaylistCollection(collectionId)
+        }
+    }
+
+    fun addEpisodeToPlaylist(episodeId: Long, playlistName: String) {
+        viewModelScope.launch {
+            repo.addEpisodeToPlaylist(episodeId, playlistName)
+        }
+    }
+
+    fun addEpisodesToPlaylistBatch(episodeIds: Collection<Long>, playlistName: String) {
+        viewModelScope.launch {
+            repo.addEpisodesToPlaylistBatch(episodeIds, playlistName)
+        }
+    }
+
+    fun removeEpisodeFromPlaylist(episodeId: Long) {
+        viewModelScope.launch {
+            repo.removeEpisodeFromPlaylist(episodeId)
+        }
+    }
+
+    fun setListenedBatch(episodeIds: Collection<Long>, listened: Boolean) {
+        viewModelScope.launch {
+            repo.markEpisodesListenedBatch(episodeIds, listened)
+            refreshUpNext()
+        }
+    }
+
+    fun clearTrackingBatch(episodeIds: Collection<Long>) {
+        viewModelScope.launch {
+            repo.clearEpisodesTrackingBatch(episodeIds)
+            refreshUpNext()
+        }
     }
 }

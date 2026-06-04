@@ -28,7 +28,11 @@ private fun Episode.toListItem() = EpisodeListItem(
     episodeNumber = episodeNumber,
     durationMillis = durationMillis,
     listened = listened,
-    listenedAt = listenedAt
+    listenedAt = listenedAt,
+    playbackPosition = playbackPosition,
+    lastPlayedTimestamp = lastPlayedTimestamp,
+    userRating = userRating,
+    userNotes = userNotes
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,7 +50,7 @@ fun StatsScreen(vm: PodcastViewModel, onBack: () -> Unit, onEpisodeClick: (Episo
             }
         )
         
-        TabRow(selectedTabIndex = selectedTab) {
+        PrimaryTabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Up Next") })
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("History") })
         }

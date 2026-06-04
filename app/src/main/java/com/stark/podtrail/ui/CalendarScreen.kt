@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Star
 
 @Composable
 fun CalendarScreen(vm: PodcastViewModel, onEpisodeClick: (EpisodeListItem) -> Unit) {
@@ -197,7 +198,29 @@ private fun isToday(cal: Calendar, day: Int): Boolean {
 fun EpisodesListItemSmall(ep: EpisodeListItem, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(ep.title, maxLines = 1) },
-        supportingContent = { Text(formatTime(ep.pubDate)) },
+        supportingContent = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(formatTime(ep.pubDate))
+                if (ep.userRating != null && ep.userRating > 0) {
+                    Spacer(Modifier.width(8.dp))
+                    Text("•", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Rating",
+                        tint = androidx.compose.ui.graphics.Color(0xFFFFC107),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = "${ep.userRating}/10",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
         leadingContent = {
              coil3.compose.AsyncImage(
                 model = ep.imageUrl,

@@ -359,6 +359,65 @@ fun EpisodeDetailScreen(episode: Episode, vm: PodcastViewModel, onClose: () -> U
                 } else {
                     Text("No description available.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+
+                if (episode.listened) {
+                    Spacer(Modifier.height(24.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(16.dp))
+                    
+                    Text("Your Log", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    
+                    // Star Rating (1 to 10 stars)
+                    val currentRating = episode.userRating ?: 0
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        (1..10).forEach { star ->
+                            val isSelected = star <= currentRating
+                            Icon(
+                                imageVector = if (isSelected) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = "$star Stars",
+                                tint = if (isSelected) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clickable {
+                                        val newRating = if (currentRating == star) null else star
+                                        vm.updateEpisodeRatingAndNotes(episode.id, newRating, episode.userNotes)
+                                    }
+                            )
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // Private Notes / Review
+                    var notesText by remember(episode.id, episode.userNotes) { mutableStateOf(episode.userNotes ?: "") }
+                    var isEditingNotes by remember { mutableStateOf(false) }
+                    
+                    OutlinedTextField(
+                        value = notesText,
+                        onValueChange = { 
+                            notesText = it
+                            isEditingNotes = true
+                        },
+                        label = { Text("Private listening notes / review") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 4,
+                        trailingIcon = {
+                            if (isEditingNotes) {
+                                IconButton(onClick = {
+                                    vm.updateEpisodeRatingAndNotes(episode.id, if (currentRating == 0) null else currentRating, if (notesText.isBlank()) null else notesText)
+                                    isEditingNotes = false
+                                }) {
+                                    Icon(Icons.Default.Check, contentDescription = "Save Notes", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    )
+                }
              }
 
              Spacer(Modifier.height(16.dp))

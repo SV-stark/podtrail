@@ -6,7 +6,7 @@ repo: e:\PodTrail
 </project>
 
 <stack>
-lang: Kotlin 2.2+ (exclusive, NO Java)
+lang: Kotlin 2.4+ (exclusive, NO Java)
 ui: Jetpack Compose Material 3 (NO XML)
 db: Room
 net: OkHttp + Gson

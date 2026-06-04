@@ -127,6 +127,37 @@ fun EnhancedEpisodeCard(
                     modifier = Modifier.fillMaxWidth()
                 )
                 
+                // User Rating & Notes
+                if (episode.userRating != null && episode.userRating > 0) {
+                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${episode.userRating}/10",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (!episode.userNotes.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
+                    Text(
+                        text = episode.userNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                
                 // Playback progress
                 if (episode.playbackPosition > 0 && !episode.listened && episode.durationMillis != null) {
                     Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))

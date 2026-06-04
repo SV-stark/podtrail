@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stark.podtrail.data.EpisodeListItem
+import com.stark.podtrail.data.PlaylistCollection
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
@@ -44,6 +46,10 @@ fun EnhancedEpisodeListScreen(
     
     // Show filters panel
     var showFilters by remember { mutableStateOf(false) }
+
+    // Playlist dialog state
+    var showPlaylistDialog by remember { mutableStateOf(false) }
+    val collections by vm.playlistCollections.collectAsState()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -83,7 +89,7 @@ fun EnhancedEpisodeListScreen(
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
@@ -175,18 +181,22 @@ fun EnhancedEpisodeListScreen(
                 BatchActionBar(
                     selectedCount = selectedEpisodes.size,
                     onMarkListened = { 
-                        // Batch mark listened logic
+                        vm.setListenedBatch(selectedEpisodes, true)
+                        isSelectionMode = false
                         selectedEpisodes = emptySet()
                     },
                     onMarkUnlistened = { 
-                        // Batch mark unlistened logic
+                        vm.setListenedBatch(selectedEpisodes, false)
+                        isSelectionMode = false
                         selectedEpisodes = emptySet()
                     },
                     onDelete = { 
+                        vm.clearTrackingBatch(selectedEpisodes)
+                        isSelectionMode = false
                         selectedEpisodes = emptySet()
                     },
                     onAddToPlaylist = { 
-                        selectedEpisodes = emptySet()
+                        showPlaylistDialog = true
                     },
                     onClearSelection = { selectedEpisodes = emptySet() },
                     modifier = Modifier.padding(16.dp)
@@ -194,4 +204,88 @@ fun EnhancedEpisodeListScreen(
             }
         }
     }
+
+    if (showPlaylistDialog) {
+        PlaylistSelectionDialog(
+            collections = collections,
+            onDismiss = { showPlaylistDialog = false },
+            onSelectCollection = { name ->
+                vm.addEpisodesToPlaylistBatch(selectedEpisodes, name)
+                showPlaylistDialog = false
+                isSelectionMode = false
+                selectedEpisodes = emptySet()
+            },
+            onCreateCollection = { name ->
+                vm.createPlaylistCollection(name)
+                vm.addEpisodesToPlaylistBatch(selectedEpisodes, name)
+                showPlaylistDialog = false
+                isSelectionMode = false
+                selectedEpisodes = emptySet()
+            }
+        )
+    }
+}
+
+@Composable
+fun PlaylistSelectionDialog(
+    collections: List<PlaylistCollection>,
+    onDismiss: () -> Unit,
+    onSelectCollection: (String) -> Unit,
+    onCreateCollection: (String) -> Unit
+) {
+    var newCollectionName by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to Playlist/Collection") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (collections.isEmpty()) {
+                    Text("No collections found. Create one below:", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text("Select a collection:", style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                        items(collections) { col ->
+                            TextButton(
+                                onClick = { onSelectCollection(col.name) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(col.name, modifier = Modifier.align(Alignment.CenterVertically))
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+                Text("Create new collection:", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newCollectionName,
+                    onValueChange = { newCollectionName = it },
+                    placeholder = { Text("Collection name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (newCollectionName.isNotBlank()) {
+                        onCreateCollection(newCollectionName)
+                    }
+                },
+                enabled = newCollectionName.isNotBlank()
+            ) {
+                Text("Create & Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

@@ -54,21 +54,27 @@ fun SearchScreen(
             modifier = Modifier.padding(ResponsiveDimensions.spacingSmall())
         ) {
             SearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { /* Handle search if needed */ },
-                active = false,
-                onActiveChange = { },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search podcasts and episodes...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        onSearch = { },
+                        expanded = false,
+                        onExpandedChange = { },
+                        placeholder = { Text("Search podcasts and episodes...") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        },
+                        trailingIcon = {
+                            if (isLoading) {
+                                LoadingSpinner(size = 20.dp)
+                            }
+                        }
+                    )
                 },
-                trailingIcon = {
-                    if (isLoading) {
-                        LoadingSpinner(size = 20.dp)
-                    }
-                }
+                expanded = false,
+                onExpandedChange = { },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Search results dropdown if active
             }
