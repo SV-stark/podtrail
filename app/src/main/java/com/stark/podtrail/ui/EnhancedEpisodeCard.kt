@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.stark.podtrail.data.Podcast
 import com.stark.podtrail.data.EpisodeListItem
 import com.stark.podtrail.data.Episode
@@ -227,8 +228,8 @@ fun EpisodeArtwork(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall())),
             contentScale = ContentScale.Crop,
-            error = rememberAsyncImagePainter(Icons.Default.Podcasts),
-            placeholder = rememberAsyncImagePainter(Icons.Default.Podcasts)
+            error = rememberVectorPainter(Icons.Default.Podcasts),
+            placeholder = rememberVectorPainter(Icons.Default.Podcasts)
         )
         
         // Overlay for listened episodes
