@@ -23,10 +23,7 @@ import coil3.compose.AsyncImage
 import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Star
+import com.stark.podtrail.ui.AppIcons
 
 @Composable
 fun CalendarScreen(vm: PodcastViewModel, onEpisodeClick: (EpisodeListItem) -> Unit) {
@@ -65,7 +62,7 @@ fun CalendarScreen(vm: PodcastViewModel, onEpisodeClick: (EpisodeListItem) -> Un
                 new.add(Calendar.MONTH, -1)
                 currentMonth = new
                 selectedDay = null
-            }) { Icon(Icons.Default.ChevronLeft, contentDescription = "Prev") }
+            }) { Icon(AppIcons.ChevronLeft, contentDescription = "Prev") }
             
             Text(
                 text = java.text.SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(currentMonth.time),
@@ -77,7 +74,7 @@ fun CalendarScreen(vm: PodcastViewModel, onEpisodeClick: (EpisodeListItem) -> Un
                 new.add(Calendar.MONTH, 1)
                 currentMonth = new
                 selectedDay = null
-            }) { Icon(Icons.Default.ChevronRight, contentDescription = "Next") }
+            }) { Icon(AppIcons.ChevronRight, contentDescription = "Next") }
         }
 
         // Days Grid
@@ -206,7 +203,7 @@ fun EpisodesListItemSmall(ep: EpisodeListItem, onClick: () -> Unit) {
                     Text("•", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                     Icon(
-                        imageVector = Icons.Default.Star,
+                        imageVector = AppIcons.Star,
                         contentDescription = "Rating",
                         tint = androidx.compose.ui.graphics.Color(0xFFFFC107),
                         modifier = Modifier.size(12.dp)

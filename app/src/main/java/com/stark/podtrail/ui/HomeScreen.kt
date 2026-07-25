@@ -17,20 +17,17 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
+import com.stark.podtrail.ui.AppIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.foundation.clickable
 import com.stark.podtrail.data.PodcastWithStats
+import kotlinx.collections.immutable.toPersistentList
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun HomeScreen(
@@ -86,7 +83,8 @@ fun HomeScreen(
     
     // Chunk podcasts for grid view
     val columns = ResponsiveDimensions.getGridColumns(160.dp)
-    val chunkedPodcasts = remember(podcasts, columns) { podcasts.chunked(columns) }
+    val persistentPodcasts = remember(podcasts) { podcasts.toPersistentList() }
+    val chunkedPodcasts = remember(persistentPodcasts, columns) { persistentPodcasts.chunked(columns) }
 
     // Handle loading state when all data is loading
     if (podcasts.isEmpty() && isRefreshing) {
@@ -175,7 +173,7 @@ fun HomeScreen(
                         // View Toggle
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(
-                                imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                                imageVector = if (isGridView) AppIcons.List else AppIcons.GridView,
                                 contentDescription = "Switch View"
                             )
                         }
@@ -263,7 +261,7 @@ fun PodcastInfoDialog(
                 onToggleFavorite()
             }) {
                 Icon(
-                    imageVector = if (podcast.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    imageVector = if (podcast.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
                     contentDescription = if (podcast.isFavorite) "Unfavorite" else "Favorite",
                     tint = if (podcast.isFavorite) androidx.compose.ui.graphics.Color.Red else LocalContentColor.current
                 )

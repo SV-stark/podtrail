@@ -1,22 +1,47 @@
 package com.stark.podtrail.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.stark.podtrail.data.EpisodeListItem
 import com.stark.podtrail.data.Podcast
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class SearchScope { ALL, PODCASTS, EPISODES }
 
@@ -30,21 +55,19 @@ fun SearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var searchScope by remember { mutableStateOf(SearchScope.ALL) }
     
-    val podcasts by remember(searchQuery) { 
-        if (searchQuery.isBlank() || searchScope != SearchScope.PODCASTS && searchScope != SearchScope.ALL) 
-            kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+    val podcasts by remember(searchQuery, searchScope) { 
+        if (searchQuery.isBlank() || (searchScope != SearchScope.PODCASTS && searchScope != SearchScope.ALL)) 
+            MutableStateFlow(emptyList())
         else vm.searchPodcasts(searchQuery)
     }.collectAsState(initial = emptyList())
     
-    val episodes by remember(searchQuery) {
-        if (searchQuery.isBlank() || searchScope != SearchScope.EPISODES && searchScope != SearchScope.ALL)
-            kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+    val episodes by remember(searchQuery, searchScope) {
+        if (searchQuery.isBlank() || (searchScope != SearchScope.EPISODES && searchScope != SearchScope.ALL))
+            MutableStateFlow(emptyList())
         else vm.searchEpisodes(searchQuery)
     }.collectAsState(initial = emptyList())
     
     val isLoading = searchQuery.isNotBlank() && podcasts.isEmpty() && episodes.isEmpty()
-
-
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -75,9 +98,7 @@ fun SearchScreen(
                 expanded = false,
                 onExpandedChange = { },
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                // Search results dropdown if active
-            }
+            ) { }
             
             // Search Scope Selector
             Row(
@@ -94,13 +115,13 @@ fun SearchScreen(
                     selected = searchScope == SearchScope.PODCASTS,
                     onClick = { searchScope = SearchScope.PODCASTS },
                     label = { Text("Podcasts") },
-                    leadingIcon = { Icon(Icons.Default.Podcasts, contentDescription = null) }
+                    leadingIcon = { Icon(AppIcons.Podcasts, contentDescription = null) }
                 )
                 FilterChip(
                     selected = searchScope == SearchScope.EPISODES,
                     onClick = { searchScope = SearchScope.EPISODES },
                     label = { Text("Episodes") },
-                    leadingIcon = { Icon(Icons.Default.Podcasts, contentDescription = null) }
+                    leadingIcon = { Icon(AppIcons.Podcasts, contentDescription = null) }
                 )
             }
         }
@@ -204,7 +225,7 @@ fun PodcastSearchResult(
                 contentDescription = podcast.title,
                 modifier = Modifier
                     .size(ResponsiveDimensions.iconSizeLarge())
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall()))
+                    .clip(RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall()))
             )
             Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingSmall()))
             Column(modifier = Modifier.weight(1f)) {
@@ -244,7 +265,7 @@ fun EpisodeSearchResult(
                 contentDescription = episode.title,
                 modifier = Modifier
                     .size(ResponsiveDimensions.iconSizeMedium())
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall()))
+                    .clip(RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall()))
             )
             Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingSmall()))
             Column(modifier = Modifier.weight(1f)) {
@@ -264,5 +285,5 @@ fun EpisodeSearchResult(
 }
 
 private fun formatTime(millis: Long): String {
-    return java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(millis))
+    return SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(millis))
 }

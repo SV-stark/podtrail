@@ -11,7 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Search
+import com.stark.podtrail.ui.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -117,7 +119,7 @@ fun SearchScreen(vm: PodcastViewModel, onBack: () -> Unit, onPodcastAdded: () ->
                 .clickable { showUrlDialog = true }
                 .padding(vertical = 12.dp, horizontal = 0.dp)
         ) {
-            Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(AppIcons.Explore, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
             Text("Add by URL", style = MaterialTheme.typography.bodyLarge)
         }
@@ -135,8 +137,8 @@ fun SearchScreen(vm: PodcastViewModel, onBack: () -> Unit, onPodcastAdded: () ->
                             contentDescription = null,
                             modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop,
-                            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                            error = rememberVectorPainter(Icons.Default.Podcasts)
+                            placeholder = rememberVectorPainter(AppIcons.Podcasts),
+                            error = rememberVectorPainter(AppIcons.Podcasts)
                         )
                     },
                     trailingContent = {
@@ -193,8 +195,8 @@ fun DiscoverScreen(vm: PodcastViewModel) {
                         contentDescription = null,
                         modifier = Modifier.size(200.dp).clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop,
-                        placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                        error = rememberVectorPainter(Icons.Default.Podcasts)
+                        placeholder = rememberVectorPainter(AppIcons.Podcasts),
+                        error = rememberVectorPainter(AppIcons.Podcasts)
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(p.artistName ?: "", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
@@ -239,36 +241,47 @@ fun DiscoverScreen(vm: PodcastViewModel) {
         
         Spacer(Modifier.height(16.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(8.dp))
-        
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 140.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            items(discoverPodcasts) { podcast ->
-                Card(
-                     onClick = { showPreviewPodcast = podcast },
-                     shape = RoundedCornerShape(12.dp),
-                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column {
-                        AsyncImage(
-                            model = podcast.artworkUrl600 ?: podcast.artworkUrl100,
-                            contentDescription = null,
-                            modifier = Modifier.aspectRatio(1f),
-                            contentScale = ContentScale.Crop,
-                            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                            error = rememberVectorPainter(Icons.Default.Podcasts)
-                        )
-                        Box(Modifier.padding(12.dp)) {
-                            Text(
-                                text = podcast.collectionName ?: "Unknown",
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 2,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        if (discoverPodcasts.isEmpty()) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(6) {
+                    ShimmerItemPlaceholder(height = 180.dp)
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(discoverPodcasts) { podcast ->
+                    Card(
+                         onClick = { showPreviewPodcast = podcast },
+                         shape = RoundedCornerShape(12.dp),
+                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column {
+                            AsyncImage(
+                                model = podcast.artworkUrl600 ?: podcast.artworkUrl100,
+                                contentDescription = null,
+                                modifier = Modifier.aspectRatio(1f).fillMaxWidth(),
+                                contentScale = ContentScale.Crop,
+                                placeholder = rememberVectorPainter(AppIcons.Podcasts),
+                                error = rememberVectorPainter(AppIcons.Podcasts)
                             )
+                            Box(Modifier.padding(12.dp)) {
+                                Text(
+                                    text = podcast.collectionName ?: "Unknown",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -308,8 +321,8 @@ fun EpisodeDetailScreen(episode: Episode, vm: PodcastViewModel, onClose: () -> U
                     .clip(RoundedCornerShape(12.dp))
                     .shadow(8.dp),
                 contentScale = ContentScale.Crop,
-                error = rememberVectorPainter(Icons.Default.Podcasts),
-                placeholder = rememberVectorPainter(Icons.Default.Podcasts)
+                error = rememberVectorPainter(AppIcons.Podcasts),
+                placeholder = rememberVectorPainter(AppIcons.Podcasts)
             )
         }
 
@@ -378,7 +391,7 @@ fun EpisodeDetailScreen(episode: Episode, vm: PodcastViewModel, onClose: () -> U
                         (1..10).forEach { star ->
                             val isSelected = star <= currentRating
                             Icon(
-                                imageVector = if (isSelected) Icons.Default.Star else Icons.Default.StarBorder,
+                                imageVector = if (isSelected) AppIcons.Star else AppIcons.FavoriteBorder,
                                 contentDescription = "$star Stars",
                                 tint = if (isSelected) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier

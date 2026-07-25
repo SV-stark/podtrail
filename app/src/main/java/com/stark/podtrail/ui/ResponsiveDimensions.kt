@@ -80,6 +80,13 @@ object ResponsiveDimensions {
         ScreenSize.MEDIUM -> 40.dp
         ScreenSize.LARGE -> 48.dp
     }
+
+    @Composable
+    fun iconSizeExtraLarge() = when (getScreenSize()) {
+        ScreenSize.SMALL -> 56.dp
+        ScreenSize.MEDIUM -> 64.dp
+        ScreenSize.LARGE -> 72.dp
+    }
     
     @Composable
     fun cornerRadiusSmall() = when (getScreenSize()) {

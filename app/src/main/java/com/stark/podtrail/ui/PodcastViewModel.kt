@@ -1,28 +1,36 @@
 package com.stark.podtrail.ui
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.stark.podtrail.data.PodcastRepository
+import androidx.paging.cachedIn
 import com.stark.podtrail.data.Episode
 import com.stark.podtrail.data.EpisodeListItem
-import com.stark.podtrail.data.SortOption
+import com.stark.podtrail.data.PodcastDatabase
+import com.stark.podtrail.data.PodcastRepository
 import com.stark.podtrail.data.SettingsRepository
-import com.stark.podtrail.data.Playlist
-import com.stark.podtrail.data.PlaylistCollection
+import com.stark.podtrail.data.SortOption
 import com.stark.podtrail.network.ItunesPodcastSearcher
 import com.stark.podtrail.network.SearchResult
-import kotlinx.coroutines.flow.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.ui.graphics.vector.ImageVector
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.stark.podtrail.storage.CleanupOption
+import com.stark.podtrail.storage.CleanupResult
+import com.stark.podtrail.storage.StorageManager
+import com.stark.podtrail.storage.StorageStats
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import androidx.paging.cachedIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class Badge(
     val name: String,
@@ -35,8 +43,46 @@ data class Badge(
 @HiltViewModel
 class PodcastViewModel @Inject constructor(
     val repo: PodcastRepository,
-    private val settingsRepo: SettingsRepository
+    private val settingsRepo: SettingsRepository,
+    val database: PodcastDatabase
 ) : ViewModel() {
+
+    private val storageManager = StorageManager(database.podcastDao())
+
+    private val _storageStats = MutableStateFlow<StorageStats?>(null)
+    val storageStats = _storageStats.asStateFlow()
+
+    private val _isPerformingCleanup = MutableStateFlow(false)
+    val isPerformingCleanup = _isPerformingCleanup.asStateFlow()
+
+    private val _lastCleanupResults = MutableStateFlow<List<CleanupResult>>(emptyList())
+    val lastCleanupResults = _lastCleanupResults.asStateFlow()
+
+    fun loadStorageStats() {
+        viewModelScope.launch {
+            _storageStats.value = storageManager.getStorageStats()
+        }
+    }
+
+    fun performCleanup(option: CleanupOption) {
+        viewModelScope.launch {
+            _isPerformingCleanup.value = true
+            val res = storageManager.performCleanup(option)
+            _lastCleanupResults.value = listOf(res)
+            _storageStats.value = storageManager.getStorageStats()
+            _isPerformingCleanup.value = false
+        }
+    }
+
+    fun performAutoCleanup() {
+        viewModelScope.launch {
+            _isPerformingCleanup.value = true
+            val results = storageManager.autoCleanup()
+            _lastCleanupResults.value = results
+            _storageStats.value = storageManager.getStorageStats()
+            _isPerformingCleanup.value = false
+        }
+    }
 
     val podcasts = repo.allPodcasts()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -206,25 +252,25 @@ class PodcastViewModel @Inject constructor(
             Badge(
                 "Newbie", 
                 "Listen to your first episode", 
-                Icons.Default.Mic, 
+                AppIcons.Mic, 
                 time > 0
             ),
             Badge(
                 "Regular", 
                 "3 Day Streak", 
-                Icons.Default.LocalFireDepartment, 
+                AppIcons.LocalFireDepartment, 
                 streak >= 3
             ),
             Badge(
                 "Super Fan", 
                 "Listen for over 24 hours", 
-                Icons.Default.Timer, 
+                AppIcons.Timer, 
                 time >= 24 * 3600 * 1000
             ),
             Badge(
                 "Collector",
                 "Subscribe to 5 podcasts",
-                Icons.Default.Mic,
+                AppIcons.Mic,
                 podList.size >= 5
             )
         )
@@ -235,6 +281,7 @@ class PodcastViewModel @Inject constructor(
 
     init {
         refreshUpNext()
+        loadStorageStats()
         viewModelScope.launch {
             repo.checkAndFixRestoringEpisodes()
             refreshUpNext()

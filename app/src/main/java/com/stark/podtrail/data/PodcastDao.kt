@@ -281,6 +281,22 @@ abstract class PodcastDao {
 
     @androidx.room3.Query("SELECT * FROM podcasts WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%'")
     abstract fun searchPodcasts(query: String): Flow<List<Podcast>>
+
+    // Storage Maintenance Queries
+    @Query("SELECT COUNT(*) FROM episodes WHERE listened = 0 AND pubDate < :cutoff")
+    abstract suspend fun countOldUnlistenedEpisodes(cutoff: Long): Int
+
+    @Query("DELETE FROM episodes WHERE listened = 0 AND pubDate < :cutoff")
+    abstract suspend fun deleteOldUnlistenedEpisodes(cutoff: Long): Int
+
+    @Query("SELECT COUNT(*) FROM episodes WHERE description IS NULL OR LENGTH(description) < 50")
+    abstract suspend fun countShortDescriptionEpisodes(): Int
+
+    @Query("UPDATE episodes SET description = SUBSTR(description, 1, 200) WHERE LENGTH(description) > 200")
+    abstract suspend fun truncateLongDescriptions(): Int
+
+    @Query("DELETE FROM podcasts WHERE (lastUpdated IS NULL OR lastUpdated < :cutoff)")
+    abstract suspend fun deleteInactivePodcasts(cutoff: Long): Int
 }
 
 data class EpisodeActivityData(

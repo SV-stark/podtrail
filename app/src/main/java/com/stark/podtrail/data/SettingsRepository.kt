@@ -1,18 +1,25 @@
 package com.stark.podtrail.data
 
 import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import androidx.room3.*
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
-import com.stark.podtrail.data.OpmlManager
-import androidx.datastore.preferences.preferencesDataStore
+import javax.inject.Inject
+import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -23,6 +30,10 @@ class SettingsRepository @Inject constructor(
 ) {
     private val dataStore = context.dataStore
     private val dao = database.podcastDao()
+    private val json = Json { 
+        ignoreUnknownKeys = true 
+        encodeDefaults = true
+    }
 
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -83,74 +94,63 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun importDatabase(uri: android.net.Uri): Boolean {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                 if (inputStream == null) return@withContext false
 
                 val jsonString = GZIPInputStream(inputStream).bufferedReader().use { it.readText() }
 
-                val gson = com.google.gson.Gson()
-                // Try parsing as MinimalBackupData first (version 2)
+                // Try parsing as MinimalBackupData first (version 2) using reflectionless kotlinx.serialization
                 try {
-                    val backupData = gson.fromJson(jsonString, MinimalBackupData::class.java)
-                    if (backupData.podcasts != null) { // Simple check
-                        database.useWriterConnection { transactor ->
-                            transactor.immediateTransaction {
-                                dao.deleteAllEpisodes()
-                                dao.deleteAllPodcasts()
-                                
-                                // 1. Insert Podcasts
-                                val urlToIdMap = mutableMapOf<String, Long>()
-                                backupData.podcasts.forEach { mp ->
-                                    val p = Podcast(
-                                        title = mp.title,
-                                        feedUrl = mp.feedUrl,
-                                        isFavorite = mp.isFavorite,
-                                        imageUrl = null,
-                                        description = null,
-                                        primaryGenre = null
-                                    )
-                                    val id = dao.insertPodcast(p)
-                                    urlToIdMap[mp.feedUrl] = id
-                                }
-                                
-                                // 2. Insert Episodes (Stubs)
-                                val episodeStubs = backupData.episodes?.mapNotNull { me ->
-                                    val pid = urlToIdMap[me.feedUrl]
-                                    if (pid != null) {
-                                        Episode(
-                                            podcastId = pid,
-                                            guid = me.guid,
-                                            title = "Restoring...",
-                                            listened = me.listened,
-                                            playbackPosition = me.playbackPosition,
-                                            lastPlayedTimestamp = me.lastPlayedTimestamp,
-                                            pubDate = 0,
-                                            audioUrl = null,
-                                            imageUrl = null,
-                                            description = null
-                                        )
-                                    } else null
-                                }
-                                dao.insertAllEpisodes(episodeStubs ?: emptyList())
-                            }
+                    val backupData = json.decodeFromString<MinimalBackupData>(jsonString)
+                    if (backupData.podcasts != null) {
+                        dao.deleteAllEpisodes()
+                        dao.deleteAllPodcasts()
+                        
+                        val urlToIdMap = mutableMapOf<String, Long>()
+                        backupData.podcasts.forEach { mp ->
+                            val p = Podcast(
+                                title = mp.title,
+                                feedUrl = mp.feedUrl,
+                                isFavorite = mp.isFavorite,
+                                imageUrl = null,
+                                description = null,
+                                primaryGenre = null
+                            )
+                            val id = dao.insertPodcast(p)
+                            urlToIdMap[mp.feedUrl] = id
                         }
+                        
+                        val episodeStubs = backupData.episodes?.mapNotNull { me ->
+                            val pid = urlToIdMap[me.feedUrl]
+                            if (pid != null) {
+                                Episode(
+                                    podcastId = pid,
+                                    guid = me.guid,
+                                    title = "Restoring...",
+                                    listened = me.listened,
+                                    playbackPosition = me.playbackPosition,
+                                    lastPlayedTimestamp = me.lastPlayedTimestamp,
+                                    pubDate = 0,
+                                    audioUrl = null,
+                                    imageUrl = null,
+                                    description = null
+                                )
+                            } else null
+                        }
+                        dao.insertAllEpisodes(episodeStubs ?: emptyList())
                         return@withContext true
                     }
                 } catch (e: Exception) {
-                    // Fallback to legacy
+                    // Fallback to legacy version
                 }
 
-                val legacyBackup = gson.fromJson(jsonString, BackupData::class.java)
-                database.useWriterConnection { transactor ->
-                    transactor.immediateTransaction {
-                        dao.deleteAllEpisodes()
-                        dao.deleteAllPodcasts()
-                        dao.insertPodcasts(legacyBackup.podcasts)
-                        dao.insertAllEpisodes(legacyBackup.episodes)
-                    }
-                }
+                val legacyBackup = json.decodeFromString<BackupData>(jsonString)
+                dao.deleteAllEpisodes()
+                dao.deleteAllPodcasts()
+                dao.insertPodcasts(legacyBackup.podcasts)
+                dao.insertAllEpisodes(legacyBackup.episodes)
                 true
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -160,7 +160,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun exportDatabase(uri: android.net.Uri): Boolean {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             try {
                 val podcasts = dao.getAllPodcastsSync()
                 val episodes = dao.getAllEpisodesSync()
@@ -194,8 +194,7 @@ class SettingsRepository @Inject constructor(
                     episodes = minimalEpisodes
                 )
                 
-                val gson = com.google.gson.Gson()
-                val jsonString = gson.toJson(backupData)
+                val jsonString = json.encodeToString(backupData)
                 
                 val outputStream = context.contentResolver.openOutputStream(uri)
                 if (outputStream != null) {
@@ -210,7 +209,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun exportOpml(uri: android.net.Uri): Boolean {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             try {
                 val podcasts = dao.getAllPodcastsSync()
                 val opmlManager = OpmlManager()
@@ -225,7 +224,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun importOpml(uri: android.net.Uri, podcastRepository: PodcastRepository): Int {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             var count = 0
             try {
                 val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext 0

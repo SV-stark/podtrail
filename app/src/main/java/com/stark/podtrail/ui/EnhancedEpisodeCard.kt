@@ -5,30 +5,45 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import coil3.compose.rememberAsyncImagePainter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import com.stark.podtrail.data.Podcast
 import com.stark.podtrail.data.EpisodeListItem
-import com.stark.podtrail.data.Episode
-import androidx.compose.material.icons.filled.Podcasts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,171 +66,139 @@ fun EnhancedEpisodeCard(
             episode.listened -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surface
         },
-        animationSpec = tween(200), label = "cardBackground"
-    )
-    
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            isSelectionMode && isSelected -> MaterialTheme.colorScheme.primary
-            episode.listened -> MaterialTheme.colorScheme.outlineVariant
-            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-        },
-        animationSpec = tween(200), label = "borderColor"
+        animationSpec = tween(durationMillis = 200),
+        label = "backgroundColor"
     )
 
     Card(
-        onClick = if (isSelectionMode) onSelect else onDetails,
-        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-        shape = RoundedCornerShape(ResponsiveDimensions.cornerRadiusMedium()),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelectionMode) 0.dp else 1.dp,
-            pressedElevation = 4.dp
-        ),
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = if (isSelectionMode && isSelected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(ResponsiveDimensions.cornerRadiusMedium())
-            )
+            .clickable(onClick = if (isSelectionMode) onSelect else onDetails),
+        colors = CardDefaults.cardColors(
+            containerColor = cardBackgroundColor
+        ),
+        shape = RoundedCornerShape(ResponsiveDimensions.cornerRadiusMedium()),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 4.dp else 1.dp
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(ResponsiveDimensions.spacingMedium()),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Selection checkbox or artwork
-            if (isSelectionMode) {
-                SelectionCheckbox(
-                    isSelected = isSelected,
-                    onSelect = onSelect,
-                    modifier = Modifier.size(ResponsiveDimensions.iconSizeLarge())
-                )
-            } else {
-                EpisodeArtwork(
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(ResponsiveDimensions.spacingMedium()),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Selection Checkbox
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelect() },
+                        modifier = Modifier.padding(end = ResponsiveDimensions.spacingSmall())
+                    )
+                }
+
+                // Episode Artwork
+                EpisodeThumbnail(
                     imageUrl = episode.imageUrl,
-                    modifier = Modifier.size(ResponsiveDimensions.iconSizeLarge() + ResponsiveDimensions.spacingSmall()),
+                    modifier = Modifier.size(ResponsiveDimensions.iconSizeExtraLarge()),
                     isListened = episode.listened
                 )
-            }
-            
-            Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingMedium()))
-            
-            // Episode info
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingSmall())
+
+                Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingMedium()))
+
+                // Main Content Column
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    EpisodeTitle(
-                        title = episode.title,
-                        isListened = episode.listened,
-                        modifier = Modifier.weight(1f)
+                    // Header Row with Title and New Badge
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = episode.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (episode.listened) FontWeight.Normal else FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (episode.listened) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (showNewBadge && !episode.listened) {
+                            Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingSmall()))
+                            NewEpisodeBadge()
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
+
+                    // Metadata Row (Duration, Date, Status)
+                    EpisodeMetadata(
+                        pubDate = episode.pubDate,
+                        durationMillis = episode.durationMillis,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     
-                    // New badge
-                    if (showNewBadge && !episode.listened) {
-                        NewEpisodeBadge()
+                    // User Rating & Notes
+                    if (episode.userRating != null && episode.userRating > 0) {
+                        Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = AppIcons.Star,
+                                contentDescription = "Rating",
+                                tint = Color(0xFFFFC107),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${episode.userRating}/10",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                }
-                
-                Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
-                
-                EpisodeMetadata(
-                    pubDate = episode.pubDate,
-                    durationMillis = episode.durationMillis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                // User Rating & Notes
-                if (episode.userRating != null && episode.userRating > 0) {
-                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Rating",
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    
+                    if (!episode.userNotes.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
                         Text(
-                            text = "${episode.userRating}/10",
+                            text = episode.userNotes,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Progress Bar for partially listened episodes
+                    if (episode.playbackPosition > 0 && !episode.listened && episode.durationMillis != null && episode.durationMillis > 0) {
+                        Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
+                        val progress = (episode.playbackPosition.toFloat() / episode.durationMillis.toFloat()).coerceIn(0f, 1f)
+                        PlaybackProgressIndicator(
+                            progress = progress,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
-                if (!episode.userNotes.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingTiny()))
-                    Text(
-                        text = episode.userNotes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                
-                // Playback progress
-                if (episode.playbackPosition > 0 && !episode.listened && episode.durationMillis != null) {
-                    Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
-                    PlaybackProgressIndicator(
-                        progress = episode.playbackPosition.toFloat() / episode.durationMillis.toFloat(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+
+                Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingSmall()))
+
+                // Action Button (Listened Toggle or Options)
+                EpisodeActionButton(
+                    isListened = episode.listened,
+                    isSelectionMode = isSelectionMode,
+                    onToggle = onToggle
+                )
             }
-            
-            Spacer(modifier = Modifier.width(ResponsiveDimensions.spacingMedium()))
-            
-            // Action button
-            EpisodeActionButton(
-                isListened = episode.listened,
-                isSelectionMode = isSelectionMode,
-                onToggle = onToggle,
-                modifier = Modifier.size(ResponsiveDimensions.iconSizeMedium() + ResponsiveDimensions.spacingTiny())
-            )
         }
     }
 }
 
 @Composable
-fun SelectionCheckbox(
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .clickable(onClick = onSelect)
-            .background(
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                shape = CircleShape
-            )
-            .border(
-                width = 2.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(ResponsiveDimensions.iconSizeSmall())
-            )
-        }
-    }
-}
-
-@Composable
-fun EpisodeArtwork(
+fun EpisodeThumbnail(
     imageUrl: String?,
     modifier: Modifier = Modifier,
     isListened: Boolean = false
@@ -228,8 +211,8 @@ fun EpisodeArtwork(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(ResponsiveDimensions.cornerRadiusSmall())),
             contentScale = ContentScale.Crop,
-            error = rememberVectorPainter(Icons.Default.Podcasts),
-            placeholder = rememberVectorPainter(Icons.Default.Podcasts)
+            error = rememberVectorPainter(AppIcons.Podcasts),
+            placeholder = rememberVectorPainter(AppIcons.Podcasts)
         )
         
         // Overlay for listened episodes
@@ -242,7 +225,7 @@ fun EpisodeArtwork(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = AppIcons.CheckCircle,
                     contentDescription = "Listened",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(ResponsiveDimensions.iconSizeMedium())
@@ -250,28 +233,6 @@ fun EpisodeArtwork(
             }
         }
     }
-}
-
-@Composable
-fun EpisodeTitle(
-    title: String,
-    isListened: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val textColor = if (isListened) 
-        MaterialTheme.colorScheme.onSurfaceVariant 
-    else 
-        MaterialTheme.colorScheme.onSurface
-    
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = if (isListened) FontWeight.Normal else FontWeight.Bold,
-        color = textColor,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-    )
 }
 
 @Composable
@@ -392,7 +353,7 @@ fun EpisodeEmptyState(
         contentAlignment = Alignment.Center
     ) {
         EmptyState(
-            icon = Icons.Default.Podcasts,
+            icon = AppIcons.Podcasts,
             title = "No episodes found",
             message = "Try adjusting your filters or check back later for new episodes.",
             action = null
@@ -405,5 +366,5 @@ private fun formatMillis(ms: Long): String {
     val hh = s / 3600
     val mm = (s % 3600) / 60
     val ss = s % 60
-    return if (hh > 0) String.format("%d:%02d:%02d", hh, mm, ss) else String.format("%d:%02d", mm, ss)
+    return if (hh > 0) String.format("%d:%02d:%02d", hh, mm, ss) else String.format("%02d:%02d", mm, ss)
 }

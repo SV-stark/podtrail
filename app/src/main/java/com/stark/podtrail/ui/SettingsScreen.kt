@@ -1,34 +1,65 @@
 package com.stark.podtrail.ui
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.stark.podtrail.R
 import com.stark.podtrail.data.AppSettings
+import com.stark.podtrail.data.PodcastRepository
 import com.stark.podtrail.data.SettingsRepository
 import com.stark.podtrail.data.ThemeMode
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.stark.podtrail.R
-
 import kotlinx.coroutines.launch
-
-import com.stark.podtrail.data.PodcastRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +149,7 @@ fun SettingsScreen(
                     SwitchPreference(
                         title = "AMOLED Dark",
                         subtitle = "Use pure black background",
-                        icon = Icons.Default.Brightness2,
+                        icon = Icons.Default.DarkMode,
                         checked = currentSettings.useAmoled,
                         onCheckedChange = { scope.launch { repo.setAmoled(it) } }
                     )
@@ -147,7 +178,7 @@ fun SettingsScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            colors.drop(8).take(7).forEach { color -> // Take 7 to make room for custom button
+                            colors.drop(8).take(7).forEach { color ->
                                 ColorItem(color, currentSettings.customColor, scope, repo)
                             }
                             
@@ -206,8 +237,6 @@ fun SettingsScreen(
                     if (uri != null) {
                         scope.launch {
                             if (repo.importDatabase(uri)) {
-                                // For full restore, it's often safer to restart to ensure all in-memory caches (like ViewModels) are cleared.
-                                // Although Flows should update, global state or non-reactive components might be stale.
                                 val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                                 intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                 context.startActivity(intent)
@@ -219,7 +248,7 @@ fun SettingsScreen(
                 ClickablePreference(
                     title = "Import Backup (GZIP)",
                     subtitle = "Restore data (Overwrites current!)",
-                    icon = Icons.Default.Download,
+                    icon = AppIcons.Download,
                     onClick = { importLauncher.launch("application/gzip") }
                 )
             }
@@ -261,7 +290,7 @@ fun SettingsScreen(
                 ClickablePreference(
                     title = "Import OPML",
                     subtitle = "Import subscriptions from OPML file",
-                    icon = Icons.Default.AddToPhotos,
+                    icon = AppIcons.PlaylistAdd,
                     onClick = { importOpmlLauncher.launch(arrayOf("text/xml", "text/x-opml+xml", "application/xml")) }
                 )
             }
@@ -285,7 +314,6 @@ fun SettingsScreen(
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // App Icon
                         Image(
                             painter = painterResource(id = R.mipmap.ic_launcher),
                             contentDescription = "App Logo",
@@ -299,7 +327,7 @@ fun SettingsScreen(
                         Text(
                             text = "PodTrail",
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         
@@ -321,7 +349,6 @@ fun SettingsScreen(
                         
                         Spacer(Modifier.height(16.dp))
                         
-                        // Action Rows
                         AboutActionRow(
                             icon = Icons.Default.Code, 
                             label = "Source Code", 

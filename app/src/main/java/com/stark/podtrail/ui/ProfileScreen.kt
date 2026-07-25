@@ -18,8 +18,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
+import com.stark.podtrail.ui.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -100,7 +101,7 @@ fun ProfileScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text("Choose from Podcast Art") },
-                        leadingContent = { Icon(Icons.Default.Collections, null) },
+                        leadingContent = { Icon(AppIcons.GridView, null) },
                         modifier = Modifier.clickable { 
                             showBgSelectionDialog = false
                             showPodcastPicker = true
@@ -108,7 +109,7 @@ fun ProfileScreen(
                     )
                     ListItem(
                         headlineContent = { Text("Upload Image") },
-                        leadingContent = { Icon(Icons.Default.Image, null) },
+                        leadingContent = { Icon(AppIcons.Explore, null) },
                         modifier = Modifier.clickable { 
                             showBgSelectionDialog = false
                             bgImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -269,7 +270,7 @@ fun ProfileScreen(
                      contentAlignment = Alignment.Center
                  ) {
                      Icon(
-                         Icons.Default.PhotoCamera, 
+                         AppIcons.Mic, 
                          contentDescription = null, 
                          tint = MaterialTheme.colorScheme.onPrimary,
                          modifier = Modifier.size(16.dp)
@@ -321,14 +322,14 @@ fun ProfileScreen(
             StatCard(
                 title = "Total Episodes",
                 value = totalEpisodesListened.toString(),
-                icon = Icons.Default.Headphones,
+                icon = AppIcons.PlaylistPlay,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 title = "Total Time",
                 value = formatTimeListenedShort(totalTimeListened),
-                icon = Icons.Default.AccessTime,
+                icon = AppIcons.Timer,
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 modifier = Modifier.weight(1f)
             )
@@ -345,14 +346,14 @@ fun ProfileScreen(
             StatCard(
                 title = "Subscribed",
                 value = totalPodcasts.toString(),
-                icon = Icons.Default.RssFeed,
+                icon = AppIcons.Podcasts,
                 color = MaterialTheme.colorScheme.tertiaryContainer,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 title = "Streak",
                 value = "$currentStreak days",
-                icon = Icons.Default.LocalFireDepartment,
+                icon = AppIcons.LocalFireDepartment,
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.weight(1f)
             )
@@ -737,7 +738,7 @@ fun BadgeCard(badge: com.stark.podtrail.ui.Badge, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (badge.unlocked) badge.icon else Icons.Default.Lock,
+                    imageVector = if (badge.unlocked) badge.icon else AppIcons.CheckCircleOutline,
                     contentDescription = null,
                     tint = if (badge.unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f),
                     modifier = Modifier.size(24.dp)
@@ -785,7 +786,7 @@ fun BadgeShareDialog(badge: com.stark.podtrail.ui.Badge, onDismiss: () -> Unit) 
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (badge.unlocked) badge.icon else Icons.Default.Lock,
+                        imageVector = if (badge.unlocked) badge.icon else AppIcons.CheckCircleOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(40.dp)
@@ -813,7 +814,7 @@ fun BadgeShareDialog(badge: com.stark.podtrail.ui.Badge, onDismiss: () -> Unit) 
                 if (!badge.unlocked) {
                     Spacer(Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Lock, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                        Icon(AppIcons.CheckCircleOutline, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.width(8.dp))
                         Text("Locked", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     }

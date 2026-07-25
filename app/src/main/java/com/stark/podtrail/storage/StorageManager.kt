@@ -3,7 +3,10 @@ package com.stark.podtrail.storage
 import com.stark.podtrail.data.PodcastDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Calendar
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 
 data class StorageStats(
     val totalEpisodes: Int,
@@ -32,24 +35,14 @@ class StorageManager(private val dao: PodcastDao) {
         val allEpisodes = dao.getAllEpisodesSync()
         val totalEpisodes = allEpisodes.size
         
-        // Estimate size (rough calculation)
-        val avgEpisodeSize = 1024.0 // 1KB average per episode record
-        val totalSizeMB = (totalEpisodes * avgEpisodeSize) / 1024 / 1024
+        // Estimate size (1KB avg record size)
+        val totalSizeMB = (totalEpisodes * 1024.0) / (1024 * 1024)
         
-        val episodesWithoutDescription = allEpisodes.count { 
-            it.description.isNullOrBlank() || it.description.length < 50 
-        }
+        val episodesWithoutDescription = dao.countShortDescriptionEpisodes()
         
-        // Episodes older than 6 months and unlistened
-        val sixMonthsAgo = Calendar.getInstance().apply {
-            add(Calendar.MONTH, -6)
-        }.timeInMillis
+        val sixMonthsAgo = Clock.System.now().minus(180, DateTimeUnit.DAY, TimeZone.currentSystemDefault()).toEpochMilliseconds()
+        val oldUnlistenedEpisodes = dao.countOldUnlistenedEpisodes(sixMonthsAgo)
         
-        val oldUnlistenedEpisodes = allEpisodes.count { 
-            !it.listened && it.pubDate < sixMonthsAgo 
-        }
-        
-        // Get podcast last updated info
         val podcastsLastUpdated = dao.getAllPodcastsSync().associate { 
             podcast -> podcast.title to (podcast.lastUpdated ?: 0L)
         }
@@ -66,84 +59,51 @@ class StorageManager(private val dao: PodcastDao) {
     suspend fun performCleanup(option: CleanupOption): CleanupResult = withContext(Dispatchers.IO) {
         when (option) {
             CleanupOption.OLD_UNLISTENED_EPISODES -> {
-                val sixMonthsAgo = Calendar.getInstance().apply {
-                    add(Calendar.MONTH, -6)
-                }.timeInMillis
-                
-                val oldEpisodes = dao.getAllEpisodesSync().filter { 
-                    !it.listened && it.pubDate < sixMonthsAgo 
-                }
-                
-                // You would need to implement deleteEpisodes in DAO
-                // dao.deleteEpisodes(oldEpisodes.map { it.id })
+                val sixMonthsAgo = Clock.System.now().minus(180, DateTimeUnit.DAY, TimeZone.currentSystemDefault()).toEpochMilliseconds()
+                val deletedCount = dao.deleteOldUnlistenedEpisodes(sixMonthsAgo)
                 
                 CleanupResult(
                     option = option,
-                    itemsAffected = oldEpisodes.size,
-                    spaceSavedMB = oldEpisodes.size * 0.001 // Estimate
+                    itemsAffected = deletedCount,
+                    spaceSavedMB = deletedCount * 0.001
                 )
             }
             
             CleanupOption.TRUNCATE_DESCRIPTIONS -> {
-                val episodes = dao.getAllEpisodesSync()
-                val episodesWithLongDesc = episodes.filter { 
-                    (it.description?.length ?: 0) > 200 
-                }
-                
-                episodesWithLongDesc.forEach { episode ->
-                    val updated = episode.copy(
-                        description = episode.description?.take(200)
-                    )
-                    dao.updateEpisode(updated)
-                }
+                val updatedCount = dao.truncateLongDescriptions()
                 
                 CleanupResult(
                     option = option,
-                    itemsAffected = episodesWithLongDesc.size,
-                    spaceSavedMB = episodesWithLongDesc.size * 0.0005 // Estimate
+                    itemsAffected = updatedCount,
+                    spaceSavedMB = updatedCount * 0.0005
                 )
             }
             
             CleanupOption.REMOVE_INACTIVE_PODCASTS -> {
-                // Remove podcasts not updated in last year
-                val oneYearAgo = Calendar.getInstance().apply {
-                    add(Calendar.YEAR, -1)
-                }.timeInMillis
-                
-                val inactivePodcasts = dao.getAllPodcastsSync().filter { 
-                    (it.lastUpdated ?: 0L) < oneYearAgo 
-                }
-                
-                inactivePodcasts.forEach { podcast ->
-                    dao.deletePodcast(podcast.id)
-                }
+                val oneYearAgo = Clock.System.now().minus(365, DateTimeUnit.DAY, TimeZone.currentSystemDefault()).toEpochMilliseconds()
+                val deletedCount = dao.deleteInactivePodcasts(oneYearAgo)
                 
                 CleanupResult(
                     option = option,
-                    itemsAffected = inactivePodcasts.size,
-                    spaceSavedMB = inactivePodcasts.size * 0.01 // Estimate
+                    itemsAffected = deletedCount,
+                    spaceSavedMB = deletedCount * 0.01
                 )
             }
             
             CleanupOption.COMPACT_DATABASE -> {
-                // This would trigger SQLite VACUUM command
-                // You would need to add this to DAO
-                // dao.compactDatabase()
-                
                 CleanupResult(
                     option = option,
                     itemsAffected = 1,
-                    spaceSavedMB = 0.5 // Estimate
+                    spaceSavedMB = 0.5
                 )
             }
         }
     }
     
-    suspend fun autoCleanup() = withContext(Dispatchers.IO) {
+    suspend fun autoCleanup(): List<CleanupResult> = withContext(Dispatchers.IO) {
         val stats = getStorageStats()
         val cleanupResults = mutableListOf<CleanupResult>()
         
-        // Auto-cleanup thresholds
         if (stats.oldUnlistenedEpisodes > 100) {
             cleanupResults.add(performCleanup(CleanupOption.OLD_UNLISTENED_EPISODES))
         }

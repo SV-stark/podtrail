@@ -1,9 +1,11 @@
 package com.stark.podtrail.data
 
+import androidx.room3.Embedded
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
-import androidx.room3.Embedded
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = "podcasts")
 data class Podcast(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -20,5 +22,5 @@ data class PodcastWithStats(
     @Embedded val podcast: Podcast,
     val totalEpisodes: Int,
     val listenedEpisodes: Int,
-    val timeListened: Long? = 0L // New field
+    val timeListened: Long? = 0L
 )

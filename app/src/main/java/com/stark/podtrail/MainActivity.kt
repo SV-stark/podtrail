@@ -3,38 +3,67 @@ package com.stark.podtrail
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.stark.podtrail.data.AppSettings
+import com.stark.podtrail.data.SettingsRepository
+import com.stark.podtrail.data.ThemeMode
+import com.stark.podtrail.ui.AppIcons
+import com.stark.podtrail.ui.CalendarScreen
+import com.stark.podtrail.ui.DiscoverScreen
+import com.stark.podtrail.ui.EnhancedEpisodeListScreen
+import com.stark.podtrail.ui.EpisodeDetailScreen
+import com.stark.podtrail.ui.HomeScreen
+import com.stark.podtrail.ui.PodcastInfoScreen
 import com.stark.podtrail.ui.PodcastViewModel
+import com.stark.podtrail.ui.ProfileScreen
+import com.stark.podtrail.ui.SearchScreen
+import com.stark.podtrail.ui.SettingsScreen
+import com.stark.podtrail.ui.SidebarDrawer
 import com.stark.podtrail.ui.theme.PodTrailTheme
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
-import com.stark.podtrail.ui.EnhancedEpisodeListScreen
-import com.stark.podtrail.ui.HomeScreen
-import com.stark.podtrail.ui.ProfileScreen
-import com.stark.podtrail.ui.CalendarScreen
-import com.stark.podtrail.ui.SettingsScreen
-import com.stark.podtrail.ui.PodcastInfoScreen
-import com.stark.podtrail.ui.DiscoverScreen
-import com.stark.podtrail.ui.EpisodeDetailScreen
-import com.stark.podtrail.ui.SearchScreen
-import com.stark.podtrail.ui.SidebarDrawer
-import com.stark.podtrail.data.ThemeMode
-import com.stark.podtrail.data.EpisodeListItem
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import com.stark.podtrail.data.SettingsRepository
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -44,9 +73,10 @@ class MainActivity : ComponentActivity() {
     lateinit var settingsRepo: SettingsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
-            val appSettings by settingsRepo.settings.collectAsState(initial = com.stark.podtrail.data.AppSettings())
+            val appSettings by settingsRepo.settings.collectAsState(initial = AppSettings())
             
             PodTrailTheme(
                 darkTheme = when(appSettings.themeMode) {
@@ -58,7 +88,7 @@ class MainActivity : ComponentActivity() {
                 amoled = appSettings.useAmoled,
                 customColor = appSettings.customColor
             ) {
-                PodTrackApp()
+                PodTrackApp(settingsRepo = settingsRepo)
             }
         }
     }
@@ -84,7 +114,7 @@ sealed class Screen(val route: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PodTrackApp() {
+fun PodTrackApp(settingsRepo: SettingsRepository) {
     val navController = rememberNavController()
     val vm: PodcastViewModel = hiltViewModel()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -142,7 +172,7 @@ fun PodTrackApp() {
                                     else -> "PodTrack"
                                 }, 
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                fontWeight = FontWeight.Bold
                             ) 
                         },
                         navigationIcon = {
@@ -190,7 +220,7 @@ fun PodTrackApp() {
                             }
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.Explore, contentDescription = "Discover") },
+                            icon = { Icon(AppIcons.Explore, contentDescription = "Discover") },
                             label = { Text("Discover") },
                             selected = currentRoute == Screen.Discover.route,
                             onClick = {
@@ -202,7 +232,7 @@ fun PodTrackApp() {
                             }
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar") },
+                            icon = { Icon(AppIcons.DateRange, contentDescription = "Calendar") },
                             label = { Text("Calendar") },
                             selected = currentRoute == Screen.Calendar.route,
                             onClick = {
@@ -241,17 +271,19 @@ fun PodTrackApp() {
                 composable(Screen.Discover.route) { DiscoverScreen(vm) }
                 composable(Screen.Calendar.route) { CalendarScreen(vm, onEpisodeClick = { e -> navController.navigate(Screen.EpisodeDetail.createRoute(e.id)) }) }
                 composable(Screen.Profile.route) {
-                     val mainActivity = LocalContext.current as MainActivity
-                     val appSettings by mainActivity.settingsRepo.settings.collectAsState(initial = com.stark.podtrail.data.AppSettings())
-                     ProfileScreen(vm, mainActivity.settingsRepo, appSettings) 
+                     val appSettings by settingsRepo.settings.collectAsState(initial = AppSettings())
+                     ProfileScreen(vm, settingsRepo, appSettings) 
                 }
                 composable(Screen.Settings.route) {
-                    val mainActivity = LocalContext.current as MainActivity
-                    val appSettings by mainActivity.settingsRepo.settings.collectAsState(initial = com.stark.podtrail.data.AppSettings())
-                    SettingsScreen(mainActivity.settingsRepo, vm.repo, appSettings, onBack = { navController.popBackStack() })
+                    val appSettings by settingsRepo.settings.collectAsState(initial = AppSettings())
+                    SettingsScreen(settingsRepo, vm.repo, appSettings, onBack = { navController.popBackStack() })
                 }
                 composable(Screen.Search.route) {
-                    SearchScreen(vm, onBack = { navController.popBackStack() }, onPodcastAdded = { navController.popBackStack() })
+                    SearchScreen(
+                        vm = vm,
+                        onPodcastClick = { p -> navController.navigate(Screen.EpisodeList.createRoute(p.id)) },
+                        onEpisodeClick = { e -> navController.navigate(Screen.EpisodeDetail.createRoute(e.id)) }
+                    )
                 }
                 composable(
                     Screen.EpisodeList.route,
@@ -299,24 +331,3 @@ fun PodTrackApp() {
         }
     }
 }
-
-@Composable
-fun SearchScreen(vm: PodcastViewModel, onBack: () -> Unit, onPodcastAdded: () -> Unit) {
-    val query by vm.searchQuery.collectAsState()
-    val results by vm.searchResults.collectAsState()
-    var showUrlDialog by remember { mutableStateOf(false) }
-    var directUrl by remember { mutableStateOf("") }
-    var urlError by remember { mutableStateOf<String?>(null) }
-
-    // ... (rest of SearchScreen implementation, adapted to use vm.search(query))
-    // I'll keep it similar but use the ViewModel's state.
-    
-    // For brevity, I'll assume the rest of the implementation is similar to before but using the injected VM.
-    // I need to make sure I don't lose functionality.
-    
-    // ... (rest of the file remains similar but updated for Hilt and Navigation)
-}
-
-// ... (Other composables like EpisodeDetailScreen, DiscoverScreen, etc. 
-//      should probably be moved to separate files if they get too large, 
-//      but for now I'll keep them or at least the ones that were in MainActivity)

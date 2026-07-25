@@ -7,8 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import com.stark.podtrail.ui.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -67,21 +68,18 @@ fun EnhancedEpisodeListScreen(
                 },
                 actions = {
                     // Selection mode toggle
-                    IconButton(onClick = { 
-                        isSelectionMode = !isSelectionMode
-                        selectedEpisodes = emptySet()
-                    }) {
+                    IconButton(onClick = { isSelectionMode = !isSelectionMode }) {
                         Icon(
-                            imageVector = if (isSelectionMode) Icons.Default.Close else Icons.Default.Checklist,
-                            contentDescription = if (isSelectionMode) "Exit selection" else "Select episodes"
+                            imageVector = if (isSelectionMode) Icons.Default.Close else AppIcons.Checklist,
+                            contentDescription = if (isSelectionMode) "Cancel selection" else "Select episodes"
                         )
                     }
                     
                     // Filters toggle
                     IconButton(onClick = { showFilters = !showFilters }) {
                         Icon(
-                            Icons.Default.FilterList,
-                            contentDescription = "Filters"
+                            AppIcons.FilterList,
+                            contentDescription = "Filter and sort"
                         )
                     }
                 },

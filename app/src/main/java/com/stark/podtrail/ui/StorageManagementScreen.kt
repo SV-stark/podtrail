@@ -1,160 +1,124 @@
 package com.stark.podtrail.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.stark.podtrail.storage.*
-import kotlinx.coroutines.launch
+import com.stark.podtrail.storage.CleanupOption
+import com.stark.podtrail.storage.CleanupResult
+import com.stark.podtrail.storage.StorageStats
+import java.util.Locale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageManagementScreen(
-    storageManager: StorageManager,
+    vm: PodcastViewModel,
     onBack: () -> Unit
 ) {
-    var storageStats by remember { mutableStateOf<StorageStats?>(null) }
-    
-    // Helper data class for UI
-    data class CleanupDisplayInfo(
-        val title: String,
-        val description: String,
-        val icon: androidx.compose.ui.graphics.vector.ImageVector,
-        val available: Boolean
-    )
-    var isLoading by remember { mutableStateOf(false) }
-    var showCleanupDialog by remember { mutableStateOf<CleanupOption?>(null) }
-    var cleanupResults by remember { mutableStateOf<List<CleanupResult>>(emptyList()) }
-    val scope = rememberCoroutineScope()
-    
-    LaunchedEffect(Unit) {
-        isLoading = true
-        storageStats = storageManager.getStorageStats()
-        isLoading = false
-    }
+    val stats by vm.storageStats.collectAsState()
+    val isPerformingCleanup by vm.isPerformingCleanup.collectAsState()
+    val lastCleanupResults by vm.lastCleanupResults.collectAsState()
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(ResponsiveDimensions.spacingSmall()),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Text(
-                text = "Storage Management",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        if (isLoading) {
-            LoadingFullScreen("Loading storage information...")
-            return@Column
-        }
-        
-        storageStats?.let { stats ->
-            PullToRefreshWrapper(
-                isRefreshing = false,
-                onRefresh = {
-                    scope.launch {
-                        storageStats = storageManager.getStorageStats()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Storage Management") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
-            ) { padding ->
-                val layoutDirection = LocalLayoutDirection.current
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = padding.calculateStartPadding(layoutDirection) + ResponsiveDimensions.spacingSmall(),
-                        top = padding.calculateTopPadding() + ResponsiveDimensions.spacingSmall(),
-                        end = padding.calculateEndPadding(layoutDirection) + ResponsiveDimensions.spacingSmall(),
-                        bottom = padding.calculateBottomPadding() + ResponsiveDimensions.spacingSmall()
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingMedium())
-                ) {
-                    // Storage Overview
+            )
+        }
+    ) { paddingValues ->
+        if (stats == null) {
+            LoadingFullScreen("Analyzing storage...")
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(ResponsiveDimensions.spacingMedium()),
+                verticalArrangement = Arrangement.spacedBy(ResponsiveDimensions.spacingMedium())
+            ) {
+                // Storage Overview Card
+                item {
+                    StorageOverviewCard(stats = stats!!)
+                }
+
+                // Auto Cleanup Section
+                item {
+                    AutoCleanupCard(
+                        onPerformAutoCleanup = { vm.performAutoCleanup() }
+                    )
+                }
+
+                // Manual Cleanup Options
+                item {
+                    Text(
+                        text = "Manual Cleanup Options",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                items(CleanupOption.entries.toTypedArray()) { option ->
+                    CleanupOptionCard(
+                        option = option,
+                        stats = stats!!,
+                        onClick = { vm.performCleanup(option) }
+                    )
+                }
+
+                // Last Cleanup Results
+                if (lastCleanupResults.isNotEmpty()) {
                     item {
-                        StorageOverviewCard(stats = stats)
-                    }
-                    
-                    // Cleanup Options
-                    item {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = ResponsiveDimensions.spacingSmall()))
                         Text(
-                            text = "Cleanup Options",
+                            text = "Recent Cleanup Results",
                             style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(vertical = ResponsiveDimensions.spacingTiny())
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    
-                    items(getCleanupOptions(stats)) { option ->
-                        CleanupOptionCard(
-                            option = option,
-                            stats = stats,
-                            onClick = { showCleanupDialog = option }
-                        )
-                    }
-                    
-                    // Auto Cleanup
-                    item {
-                        AutoCleanupCard(
-                            onPerformAutoCleanup = {
-                                scope.launch {
-                                    isLoading = true
-                                    cleanupResults = storageManager.autoCleanup()
-                                    isLoading = false
-                                }
-                            }
-                        )
-                    }
-                    
-                    // Cleanup Results
-                    if (cleanupResults.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Recent Cleanup Results",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(vertical = ResponsiveDimensions.spacingTiny())
-                            )
-                        }
-                        items(cleanupResults) { result ->
-                            CleanupResultCard(result)
-                        }
+
+                    items(lastCleanupResults) { result ->
+                        CleanupResultCard(result = result)
                     }
                 }
             }
         }
-        
-        // Cleanup Confirmation Dialog
-        showCleanupDialog?.let { option ->
-            CleanupConfirmationDialog(
-                option = option,
-                stats = storageStats!!,
-                onConfirm = {
-                    scope.launch {
-                        isLoading = true
-                        cleanupResults = cleanupResults + storageManager.performCleanup(option)
-                        isLoading = false
-                        // refresh stats
-                        storageStats = storageManager.getStorageStats()
-                        showCleanupDialog = null
-                    }
-                },
-                onDismiss = { showCleanupDialog = null }
-            )
+
+        if (isPerformingCleanup) {
+            LoadingFullScreen("Performing cleanup...")
         }
     }
 }
@@ -180,47 +144,58 @@ fun StorageOverviewCard(stats: StorageStats) {
             ) {
                 Column {
                     Text(
-                        text = "${stats.totalEpisodes}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
                         text = "Total Episodes",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "%.1f MB".format(stats.totalSizeMB),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        text = "${stats.totalEpisodes}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
+                }
+                
+                Column {
                     Text(
-                        text = "Estimated Size",
+                        text = "Estimated DB Size",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.1f MB", stats.totalSizeMB),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
             
-            if (stats.oldUnlistenedEpisodes > 0 || stats.episodesWithoutDescription > 0) {
-                Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
-                
-                if (stats.oldUnlistenedEpisodes > 0) {
+            Spacer(modifier = Modifier.height(ResponsiveDimensions.spacingSmall()))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
                     Text(
-                        text = "⚠️ ${stats.oldUnlistenedEpisodes} old unlistened episodes",
+                        text = "Old Unlistened",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${stats.oldUnlistenedEpisodes}",
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
-                if (stats.episodesWithoutDescription > 0) {
+                
+                Column {
                     Text(
-                        text = "ℹ️ ${stats.episodesWithoutDescription} episodes with minimal descriptions",
+                        text = "Short Descriptions",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${stats.episodesWithoutDescription}",
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
@@ -244,19 +219,19 @@ fun CleanupOptionCard(
         CleanupOption.TRUNCATE_DESCRIPTIONS -> CleanupDisplayInfo(
             "Truncate Long Descriptions",
             "Limit episode descriptions to 200 characters to save space",
-            Icons.AutoMirrored.Filled.TextSnippet,
+            AppIcons.Checklist,
             true
         )
         CleanupOption.REMOVE_INACTIVE_PODCASTS -> CleanupDisplayInfo(
             "Remove Inactive Podcasts",
             "Delete podcasts not updated in the last year",
-            Icons.Default.Podcasts,
+            AppIcons.Podcasts,
             stats.podcastsLastUpdated.values.any { it < System.currentTimeMillis() - 365L * 24 * 60 * 60 * 1000 }
         )
         CleanupOption.COMPACT_DATABASE -> CleanupDisplayInfo(
             "Compact Database",
             "Optimize database file size and improve performance",
-            Icons.Default.Storage,
+            AppIcons.Explore,
             true
         )
     }
@@ -299,8 +274,7 @@ fun CleanupOptionCard(
         }
     }
 }
-// Define data class at top level or use the one defined in StorageManagementScreen if accessible?
-// Better to define it outside.
+
 data class CleanupDisplayInfo(
     val title: String,
     val description: String,
@@ -322,7 +296,7 @@ fun AutoCleanupCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.AutoFixHigh,
+                    AppIcons.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.secondary
                 )
@@ -363,7 +337,7 @@ fun CleanupResultCard(result: CleanupResult) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.CheckCircle,
+                AppIcons.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -376,67 +350,14 @@ fun CleanupResultCard(result: CleanupResult) {
                         CleanupOption.REMOVE_INACTIVE_PODCASTS -> "Inactive Podcasts Removed"
                         CleanupOption.COMPACT_DATABASE -> "Database Compacted"
                     },
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${result.itemsAffected} items affected, %.2f MB saved".format(result.spaceSavedMB),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    text = "${result.itemsAffected} items affected • ${String.format(Locale.getDefault(), "%.2f", result.spaceSavedMB)} MB saved",
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
     }
-}
-
-@Composable
-fun CleanupConfirmationDialog(
-    option: CleanupOption,
-    stats: StorageStats,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val (title, message) = when (option) {
-        CleanupOption.OLD_UNLISTENED_EPISODES -> Pair(
-            "Remove Old Unlistened Episodes",
-            "This will permanently delete ${stats.oldUnlistenedEpisodes} episodes older than 6 months that haven't been listened to. This action cannot be undone."
-        )
-        CleanupOption.TRUNCATE_DESCRIPTIONS -> Pair(
-            "Truncate Long Descriptions",
-            "This will reduce all episode descriptions to 200 characters to save storage space. This action cannot be undone."
-        )
-        CleanupOption.REMOVE_INACTIVE_PODCASTS -> Pair(
-            "Remove Inactive Podcasts",
-            "This will permanently remove podcasts that haven't been updated in the last year. This action cannot be undone."
-        )
-        CleanupOption.COMPACT_DATABASE -> Pair(
-            "Compact Database",
-            "This will optimize the database file to reduce size and improve performance. This may take a few moments."
-        )
-    }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Confirm", color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-fun getCleanupOptions(stats: StorageStats): List<CleanupOption> {
-    return listOf(
-        CleanupOption.OLD_UNLISTENED_EPISODES,
-        CleanupOption.TRUNCATE_DESCRIPTIONS,
-        CleanupOption.REMOVE_INACTIVE_PODCASTS,
-        CleanupOption.COMPACT_DATABASE
-    )
 }

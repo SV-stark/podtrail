@@ -7,7 +7,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import com.stark.podtrail.ui.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -167,7 +169,7 @@ fun EpisodeSwipeActions(
         ) {
             // Mark as listened action
             ActionButton(
-                icon = Icons.Default.CheckCircle,
+                icon = AppIcons.CheckCircle,
                 text = if (episode.listened) "Mark as Unlistened" else "Mark as Listened",
                 color = MaterialTheme.colorScheme.primary,
                 onClick = onMarkListened,

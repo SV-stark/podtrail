@@ -1,20 +1,43 @@
 package com.stark.podtrail.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.stark.podtrail.data.Podcast
 import com.stark.podtrail.data.SortOption
-import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +143,7 @@ fun BatchActionBar(
             
             IconButton(onClick = onMarkListened) {
                 Icon(
-                    Icons.Default.CheckCircle,
+                    AppIcons.CheckCircle,
                     contentDescription = "Mark as listened",
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -128,7 +151,7 @@ fun BatchActionBar(
             
             IconButton(onClick = onMarkUnlistened) {
                 Icon(
-                    Icons.Default.CheckCircleOutline,
+                    AppIcons.CheckCircleOutline,
                     contentDescription = "Mark as unlistened",
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -209,12 +232,12 @@ fun EpisodeSortMenu(
     }
 }
 
-enum class EpisodeFilter(val displayName: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    ALL("All", Icons.Default.Podcasts),
-    UNLISTENED("Unlistened", Icons.Default.RadioButtonUnchecked),
-    LISTENED("Listened", Icons.Default.CheckCircle),
+enum class EpisodeFilter(val displayName: String, val icon: ImageVector) {
+    ALL("All", AppIcons.Podcasts),
+    UNLISTENED("Unlistened", AppIcons.RadioButtonUnchecked),
+    LISTENED("Listened", AppIcons.CheckCircle),
     IN_PROGRESS("In Progress", Icons.Default.PlayArrow),
-    DOWNLOADED("Downloaded", Icons.Default.Download)
+    DOWNLOADED("Downloaded", AppIcons.Download)
 }
 
 enum class DateRange(val displayName: String) {
@@ -236,7 +259,6 @@ enum class DurationFilter(val displayName: String) {
     OVER_60("Over 1 hour")
 }
 
-// Extension properties for better display names
 val SortOption.displayName: String
     get() = when (this) {
         SortOption.DATE_NEWEST -> "Newest First"
