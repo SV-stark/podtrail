@@ -9,6 +9,8 @@ import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
 data class SearchResponse(
     val resultCount: Int,
@@ -42,13 +44,19 @@ data class RssImageAttr(val height: String)
 data class RssId(val attributes: RssIdAttr)
 data class RssIdAttr(@SerializedName("im:id") val id: String)
 
-class ItunesPodcastSearcher {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-    private val gson = Gson()
+@Singleton
+class ItunesPodcastSearcher @Inject constructor(
+    private val client: OkHttpClient,
+    private val gson: Gson
+) {
+    constructor() : this(
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build(),
+        Gson()
+    )
 
     suspend fun search(query: String): List<SearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()

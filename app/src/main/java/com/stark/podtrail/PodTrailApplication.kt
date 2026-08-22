@@ -19,6 +19,11 @@ class PodTrailApplication : Application(), Configuration.Provider, SingletonImag
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    override fun onCreate() {
+        super.onCreate()
+        com.stark.podtrail.sync.PodcastSyncWorker.scheduleSync(this)
+    }
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)

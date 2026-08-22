@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
+        androidx.activity.enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             val appSettings by settingsRepo.settings.collectAsState(initial = AppSettings())
@@ -88,7 +89,7 @@ class MainActivity : ComponentActivity() {
                 amoled = appSettings.useAmoled,
                 customColor = appSettings.customColor
             ) {
-                PodTrackApp(settingsRepo = settingsRepo)
+                PodTrailApp(settingsRepo = settingsRepo)
             }
         }
     }
@@ -114,7 +115,7 @@ sealed class Screen(val route: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PodTrackApp(settingsRepo: SettingsRepository) {
+fun PodTrailApp(settingsRepo: SettingsRepository) {
     val navController = rememberNavController()
     val vm: PodcastViewModel = hiltViewModel()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -165,11 +166,11 @@ fun PodTrackApp(settingsRepo: SettingsRepository) {
                         title = { 
                             Text(
                                 when(currentRoute) {
-                                    Screen.Home.route -> "PodTrack"
+                                    Screen.Home.route -> "PodTrail"
                                     Screen.Discover.route -> "Discover"
                                     Screen.Calendar.route -> "Calendar"
                                     Screen.Profile.route -> "Profile"
-                                    else -> "PodTrack"
+                                    else -> "PodTrail"
                                 }, 
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold

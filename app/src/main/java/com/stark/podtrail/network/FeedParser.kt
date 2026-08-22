@@ -1,8 +1,6 @@
 package com.stark.podtrail.network
 
-import android.util.Log
-import com.stark.podtrail.data.Episode
-import com.stark.podtrail.data.Podcast
+import androidx.annotation.VisibleForTesting
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.xmlpull.v1.XmlPullParser
@@ -10,8 +8,6 @@ import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.TimeZone
-import androidx.annotation.VisibleForTesting
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,8 +30,10 @@ data class ParsedEpisode(
 )
 
 @Singleton
-class FeedParser @Inject constructor() {
-    private val client = OkHttpClient()
+class FeedParser @Inject constructor(
+    private val client: OkHttpClient
+) {
+    constructor() : this(OkHttpClient())
 
     suspend fun fetchFeed(url: String): Pair<ParsedPodcast?, List<ParsedEpisode>> {
         val request = Request.Builder().url(url).build()
@@ -79,56 +77,62 @@ class FeedParser @Inject constructor() {
         while (eventType != XmlPullParser.END_DOCUMENT) {
             when (eventType) {
                 XmlPullParser.START_TAG -> {
-                    currentTag = parser.name
-                    if (currentTag == "item") {
+                    val rawTag = parser.name ?: ""
+                    currentTag = rawTag
+                    val localTag = rawTag.substringAfterLast(':').lowercase()
+
+                    if (localTag == "item") {
                         inItem = true
-                    } else if (currentTag == "image") {
-                        inImage = true
-                        val url = parser.getAttributeValue(null, "href") ?: ""
-                        if (url.isNotEmpty()) pImage = url
-                    } else if (currentTag == "itunes:image") {
-                        val url = parser.getAttributeValue(null, "href") ?: ""
-                        if (inItem) {
-                            if (url.isNotEmpty()) eImage = url
-                        } else {
-                            if (url.isNotEmpty()) pImage = url
+                    } else if (localTag == "image") {
+                        val href = parser.getAttributeValue(null, "href") ?: ""
+                        if (href.isNotEmpty()) {
+                            if (inItem) eImage = href else pImage = href
+                        } else if (!inItem) {
+                            inImage = true
                         }
-                    } else if (currentTag == "enclosure" && inItem) {
+                    } else if (localTag == "enclosure" && inItem) {
                         eAudio = parser.getAttributeValue(null, "url")
-                    } else if (currentTag == "itunes:category" && !inItem) {
-                         pGenre = parser.getAttributeValue(null, "text")
+                    } else if (localTag == "category" && !inItem) {
+                        pGenre = parser.getAttributeValue(null, "text")
                     }
                 }
                 XmlPullParser.TEXT -> {
                     val text = parser.text.trim()
-                    if (text.isNotEmpty()) {
+                    if (text.isNotEmpty() && currentTag != null) {
+                        val localTag = currentTag.substringAfterLast(':').lowercase()
                         if (inItem) {
-                            when (currentTag) {
+                            when (localTag) {
                                 "title" -> eTitle = text
                                 "guid" -> eGuid = text
-                                "pubDate" -> ePubDate = text
-                                "itunes:duration" -> eDuration = text
-                                "description", "itunes:summary", "content:encoded" -> {
-                                     // Prefer longer content if we already have a snippet, but for now just pick one
-                                     if (eDesc == null || currentTag == "content:encoded") eDesc = text
+                                "pubdate" -> ePubDate = text
+                                "duration" -> eDuration = text
+                                "description", "summary", "encoded" -> {
+                                    if (eDesc == null || localTag == "encoded" || text.length > (eDesc?.length ?: 0)) {
+                                        eDesc = text
+                                    }
                                 }
-                                "itunes:episode" -> eNumber = text
+                                "episode" -> eNumber = text
                             }
                         } else {
-                            when (currentTag) {
+                            when (localTag) {
                                 "title" -> pTitle = text
-                                "description", "itunes:summary" -> pDesc = text
+                                "description", "summary" -> pDesc = text
                                 "url" -> if (inImage) pImage = text
                             }
                         }
                     }
                 }
                 XmlPullParser.END_TAG -> {
-                    if (parser.name == "item") {
+                    val localTag = (parser.name ?: "").substringAfterLast(':').lowercase()
+                    if (localTag == "item") {
                         if (eTitle != null && eAudio != null) {
+                            val computedGuid = eGuid?.takeIf { it.isNotBlank() }
+                                ?: eAudio?.takeIf { it.isNotBlank() }
+                                ?: "${eTitle}_${ePubDate ?: ""}"
+                            
                             episodes.add(ParsedEpisode(
                                 title = eTitle ?: "Untitled",
-                                guid = eGuid ?: eAudio ?: eTitle ?: "",
+                                guid = computedGuid,
                                 audioUrl = eAudio ?: "",
                                 pubDateMillis = parseDateToMillis(ePubDate),
                                 imageUrl = eImage,
@@ -141,9 +145,9 @@ class FeedParser @Inject constructor() {
                         eTitle = null; eGuid = null; eAudio = null; ePubDate = null
                         eImage = null; eDuration = null; eDesc = null; eNumber = null
                         inItem = false
-                    } else if (parser.name == "image") {
+                    } else if (localTag == "image") {
                         inImage = false
-                    } else if (parser.name == "channel") {
+                    } else if (localTag == "channel") {
                         podcast = ParsedPodcast(pTitle, pImage, pDesc, pGenre)
                     }
                     currentTag = null
@@ -156,7 +160,7 @@ class FeedParser @Inject constructor() {
     }
 
     private fun parseDateToMillis(dateStr: String?): Long {
-        if (dateStr == null) return System.currentTimeMillis()
+        if (dateStr == null) return 0L
         val formats = arrayOf(
             "EEE, dd MMM yyyy HH:mm:ss Z",
             "EEE, dd MMM yyyy HH:mm:ss z",

@@ -1,22 +1,21 @@
 package com.stark.podtrail.data
 
-import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class BackupData(
-    @SerializedName("version") val version: Int = 1,
-    @SerializedName("timestamp") val timestamp: Long = System.currentTimeMillis(),
-    @SerializedName("podcasts") val podcasts: List<Podcast>,
-    @SerializedName("episodes") val episodes: List<Episode>
+    val version: Int = 1,
+    val timestamp: Long = System.currentTimeMillis(),
+    val podcasts: List<Podcast>,
+    val episodes: List<Episode>
 )
 
 @Serializable
 data class MinimalBackupData(
-    @SerializedName("version") val version: Int = 2,
-    @SerializedName("timestamp") val timestamp: Long = System.currentTimeMillis(),
-    @SerializedName("podcasts") val podcasts: List<MinimalPodcast>?,
-    @SerializedName("episodes") val episodes: List<MinimalEpisode>?
+    val version: Int = 2,
+    val timestamp: Long = System.currentTimeMillis(),
+    val podcasts: List<MinimalPodcast>? = null,
+    val episodes: List<MinimalEpisode>? = null
 )
 
 @Serializable

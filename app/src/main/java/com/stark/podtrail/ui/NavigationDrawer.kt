@@ -37,7 +37,7 @@ fun SidebarDrawer(
             contentAlignment = Alignment.BottomStart
         ) {
             Column {
-                Text("PodTrack", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                Text("PodTrail", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 Text("Your personal podcast companion", style = MaterialTheme.typography.bodySmall)
             }
         }

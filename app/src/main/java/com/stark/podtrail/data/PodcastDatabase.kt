@@ -8,7 +8,7 @@ import androidx.room3.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
-@Database(entities = [Podcast::class, Episode::class, Playlist::class, PlaylistCollection::class], version = 10, exportSchema = false)
+@Database(entities = [Podcast::class, Episode::class, Playlist::class, PlaylistCollection::class], version = 11, exportSchema = false)
 abstract class PodcastDatabase : RoomDatabase() {
     abstract fun podcastDao(): PodcastDao
 }
@@ -46,5 +46,12 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     override suspend fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE episodes ADD COLUMN userRating INTEGER DEFAULT NULL")
         connection.execSQL("ALTER TABLE episodes ADD COLUMN userNotes TEXT DEFAULT NULL")
+    }
+}
+
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override suspend fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("DROP INDEX IF EXISTS index_episodes_guid")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_episodes_podcastId_guid ON episodes(podcastId, guid)")
     }
 }

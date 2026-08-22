@@ -8,7 +8,21 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -20,9 +34,32 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
-import com.stark.podtrail.ui.AppIcons
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -397,6 +434,14 @@ fun ProfileScreen(
                          Text("Subscribe to podcasts to see insights.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                      }
                 } else {
+                    val chartColors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.tertiary,
+                        MaterialTheme.colorScheme.secondary,
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.tertiaryContainer,
+                        MaterialTheme.colorScheme.secondaryContainer
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -406,14 +451,9 @@ fun ProfileScreen(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val colors = listOf(
-                                Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFFC107),
-                                Color(0xFFF44336), Color(0xFF9C27B0), Color(0xFF00BCD4)
-                            )
-                            
                             var colorIndex = 0
                             genreMap.entries.sortedByDescending { it.value }.take(5).forEach { entry ->
-                                val color = colors[colorIndex % colors.size]
+                                val color = chartColors[colorIndex % chartColors.size]
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.size(12.dp).background(color, CircleShape))
                                     Spacer(Modifier.width(12.dp))
@@ -443,20 +483,17 @@ fun ProfileScreen(
                              Canvas(modifier = Modifier.size(120.dp)) {
                                  val total = totalPodcasts.toFloat()
                                  var startAngle = -90f
-                                 val colors = listOf(
-                                    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFFC107),
-                                    Color(0xFFF44336), Color(0xFF9C27B0), Color(0xFF00BCD4)
-                                )
-                                var colorIndex = 0
-                                
-                                val gapAngle = 4f
-                                genreMap.entries.sortedByDescending { it.value }.forEach { entry ->
+                                 var colorIndex = 0
+                                 
+                                 val gapAngle = 4f
+                                 genreMap.entries.sortedByDescending { it.value }.forEach { entry ->
+                                     val color = chartColors[colorIndex % chartColors.size]
                                     val sweepAngle = (entry.value / total) * 360f
                                     val drawSweep = if (totalPodcasts > 1) sweepAngle - gapAngle else sweepAngle
                                     
                                     if (drawSweep > 0) {
                                         drawArc(
-                                            color = colors[colorIndex % colors.size],
+                                            color = color,
                                             startAngle = startAngle + (if (totalPodcasts > 1) gapAngle / 2 else 0f),
                                             sweepAngle = drawSweep,
                                             useCenter = false,
@@ -825,9 +862,9 @@ fun BadgeShareDialog(badge: com.stark.podtrail.ui.Badge, onDismiss: () -> Unit) 
             Button(
                 onClick = {
                     val shareText = if (badge.unlocked) {
-                        "I unlocked the '${badge.name}' achievement on PodTrack! 🎧\n\n${badge.description}\n\nJoin me in tracking your podcast journey!"
+                        "I unlocked the '${badge.name}' achievement on PodTrail! 🎧\n\n${badge.description}\n\nJoin me in tracking your podcast journey!"
                     } else {
-                        "I'm working on unlocking the '${badge.name}' achievement on PodTrack! 🎧\n\n${badge.description}"
+                        "I'm working on unlocking the '${badge.name}' achievement on PodTrail! 🎧\n\n${badge.description}"
                     }
                     val sendIntent = android.content.Intent().apply {
                         action = android.content.Intent.ACTION_SEND
@@ -856,7 +893,6 @@ fun BadgeShareDialog(badge: com.stark.podtrail.ui.Badge, onDismiss: () -> Unit) 
 fun ListeningHeatmap(history: List<com.stark.podtrail.data.Episode>) {
     val context = LocalContext.current
     val heatmapData = remember(history) {
-        val result = mutableListOf<Pair<Long, Int>>()
         val cal = java.util.Calendar.getInstance()
         cal.add(java.util.Calendar.WEEK_OF_YEAR, -11)
         cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.SUNDAY)
@@ -867,17 +903,24 @@ fun ListeningHeatmap(history: List<com.stark.podtrail.data.Episode>) {
         
         val startMillis = cal.timeInMillis
         val oneDayMillis = 24 * 3600 * 1000L
-        
-        for (i in 0 until 84) {
-            val dayStart = startMillis + i * oneDayMillis
-            val dayEnd = dayStart + oneDayMillis
-            val count = history.count { ep ->
-                val listenedTime = ep.listenedAt ?: 0L
-                listenedTime in dayStart until dayEnd
+        val dayCounts = mutableMapOf<Int, Int>()
+
+        // Single O(history) pass
+        history.forEach { ep ->
+            val listenedTime = ep.listenedAt ?: 0L
+            if (listenedTime >= startMillis) {
+                val dayIndex = ((listenedTime - startMillis) / oneDayMillis).toInt()
+                if (dayIndex in 0 until 84) {
+                    dayCounts[dayIndex] = (dayCounts[dayIndex] ?: 0) + 1
+                }
             }
-            result.add(Pair(dayStart, count))
         }
-        result
+
+        // Build result in O(84)
+        List(84) { i ->
+            val dayStart = startMillis + i * oneDayMillis
+            Pair(dayStart, dayCounts[i] ?: 0)
+        }
     }
 
     Column(

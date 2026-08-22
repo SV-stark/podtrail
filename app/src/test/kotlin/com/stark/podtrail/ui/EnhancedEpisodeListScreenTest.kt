@@ -33,7 +33,7 @@ class EnhancedEpisodeListScreenTest {
         db = Room.inMemoryDatabaseBuilder(context, PodcastDatabase::class.java).build()
         repo = PodcastRepository(db.podcastDao(), FeedParser())
         settingsRepo = SettingsRepository(context, db)
-        vm = PodcastViewModel(repo, settingsRepo)
+        vm = PodcastViewModel(repo, settingsRepo, db)
     }
 
     @After

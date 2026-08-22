@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 @Entity(
     tableName = "episodes",
     indices = [
-        Index(value = ["guid"], unique = true),
+        Index(value = ["podcastId", "guid"], unique = true),
         Index(value = ["podcastId"]),
         Index(value = ["listened", "lastPlayedTimestamp"])
     ]

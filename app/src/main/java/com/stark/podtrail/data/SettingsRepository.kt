@@ -50,7 +50,7 @@ class SettingsRepository @Inject constructor(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
             useDynamicColor = prefs[Keys.USE_DYNAMIC] ?: true,
             useAmoled = prefs[Keys.USE_AMOLED] ?: false,
-            customColor = prefs[Keys.CUSTOM_COLOR] ?: 0xFF6200EE.toInt(),
+            customColor = prefs[Keys.CUSTOM_COLOR] ?: 0xFF0F5A56.toInt(),
             profileImageUri = prefs[Keys.PROFILE_IMAGE],
             profileBgUri = prefs[Keys.PROFILE_BG],
             userName = prefs[Keys.USER_NAME]
@@ -90,7 +90,7 @@ class SettingsRepository @Inject constructor(
     }
 
     fun getDatabasePath(): java.io.File {
-        return context.getDatabasePath("podtrack.db")
+        return context.getDatabasePath("podtrail.db")
     }
 
     suspend fun importDatabase(uri: android.net.Uri): Boolean {
@@ -101,45 +101,14 @@ class SettingsRepository @Inject constructor(
 
                 val jsonString = GZIPInputStream(inputStream).bufferedReader().use { it.readText() }
 
-                // Try parsing as MinimalBackupData first (version 2) using reflectionless kotlinx.serialization
+                // Try parsing as MinimalBackupData first (version 2)
                 try {
                     val backupData = json.decodeFromString<MinimalBackupData>(jsonString)
-                    if (backupData.podcasts != null) {
-                        dao.deleteAllEpisodes()
-                        dao.deleteAllPodcasts()
-                        
-                        val urlToIdMap = mutableMapOf<String, Long>()
-                        backupData.podcasts.forEach { mp ->
-                            val p = Podcast(
-                                title = mp.title,
-                                feedUrl = mp.feedUrl,
-                                isFavorite = mp.isFavorite,
-                                imageUrl = null,
-                                description = null,
-                                primaryGenre = null
-                            )
-                            val id = dao.insertPodcast(p)
-                            urlToIdMap[mp.feedUrl] = id
-                        }
-                        
-                        val episodeStubs = backupData.episodes?.mapNotNull { me ->
-                            val pid = urlToIdMap[me.feedUrl]
-                            if (pid != null) {
-                                Episode(
-                                    podcastId = pid,
-                                    guid = me.guid,
-                                    title = "Restoring...",
-                                    listened = me.listened,
-                                    playbackPosition = me.playbackPosition,
-                                    lastPlayedTimestamp = me.lastPlayedTimestamp,
-                                    pubDate = 0,
-                                    audioUrl = null,
-                                    imageUrl = null,
-                                    description = null
-                                )
-                            } else null
-                        }
-                        dao.insertAllEpisodes(episodeStubs ?: emptyList())
+                    if (!backupData.podcasts.isNullOrEmpty() || !backupData.episodes.isNullOrEmpty()) {
+                        dao.importMinimalBackup(
+                            podcasts = backupData.podcasts ?: emptyList(),
+                            episodes = backupData.episodes ?: emptyList()
+                        )
                         return@withContext true
                     }
                 } catch (e: Exception) {
@@ -147,10 +116,10 @@ class SettingsRepository @Inject constructor(
                 }
 
                 val legacyBackup = json.decodeFromString<BackupData>(jsonString)
-                dao.deleteAllEpisodes()
-                dao.deleteAllPodcasts()
-                dao.insertPodcasts(legacyBackup.podcasts)
-                dao.insertAllEpisodes(legacyBackup.episodes)
+                dao.importLegacyBackup(
+                    podcasts = legacyBackup.podcasts,
+                    episodes = legacyBackup.episodes
+                )
                 true
             } catch (e: Exception) {
                 e.printStackTrace()

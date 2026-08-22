@@ -76,11 +76,11 @@ class PodcastRepository @Inject constructor(
                 val (mappedPodcast, episodes) = parser.fetchFeed(podcast.feedUrl)
                 
                 // Update podcast details if changed (e.g. image, title, description)
-                if (mappedPodcast != null) {
+                 if (mappedPodcast != null) {
                      val updatedPodcast = podcast.copy(
-                        title = mappedPodcast.title ?: podcast.title,
-                        imageUrl = mappedPodcast.imageUrl,
-                        description = mappedPodcast.description,
+                        title = mappedPodcast.title?.takeIf { it.isNotBlank() } ?: podcast.title,
+                        imageUrl = mappedPodcast.imageUrl?.takeIf { it.isNotBlank() } ?: podcast.imageUrl,
+                        description = mappedPodcast.description?.takeIf { it.isNotBlank() } ?: podcast.description,
                         primaryGenre = mappedPodcast.genre ?: podcast.primaryGenre ?: "Uncategorized",
                         lastUpdated = System.currentTimeMillis()
                     )
@@ -120,26 +120,15 @@ class PodcastRepository @Inject constructor(
             SortOption.DURATION_LONGEST -> dao.getEpisodesForPodcastLiteDurationDesc(podcastId)
         }
 
-    fun episodesForPodcastPaging(podcastId: Long, sortOption: SortOption = SortOption.DATE_NEWEST): Flow<androidx.paging.PagingData<EpisodeListItem>> {
-        return androidx.paging.Pager(
-            config = androidx.paging.PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = false
-            ),
-            pagingSourceFactory = {
-                when (sortOption) {
-                    SortOption.DATE_NEWEST -> dao.getEpisodesForPodcastLitePaging(podcastId)
-                    SortOption.DATE_OLDEST -> dao.getEpisodesForPodcastLiteAscPaging(podcastId)
-                    SortOption.DURATION_SHORTEST -> dao.getEpisodesForPodcastLiteDurationAscPaging(podcastId)
-                    SortOption.DURATION_LONGEST -> dao.getEpisodesForPodcastLiteDurationDescPaging(podcastId)
-                }
-            }
-        ).flow
-    }
+
 
     suspend fun getEpisode(id: Long) = dao.getEpisodeById(id)
     
     fun getEpisodeFlow(id: Long) = dao.getEpisodeByIdFlow(id)
+
+    suspend fun updateEpisodeDescription(episodeId: Long, description: String) {
+        dao.updateEpisodeDescription(episodeId, description)
+    }
 
     fun getHistory() = dao.getHistory()
     
@@ -174,97 +163,56 @@ class PodcastRepository @Inject constructor(
     fun getCurrentStreak() = dao.getAllLastPlayedTimestamps().map { timestamps ->
         if (timestamps.isEmpty()) return@map 0
         
-        val uniqueDays = sortedSetOf<Long>()
-        val cal = Calendar.getInstance()
-        
-        timestamps.forEach { ts ->
-            cal.timeInMillis = ts
-            val dayKey = (cal.get(Calendar.YEAR) * 1000 + cal.get(Calendar.DAY_OF_YEAR)).toLong()
-            uniqueDays.add(dayKey)
+        val zone = java.util.TimeZone.getDefault()
+        fun toEpochDay(ts: Long): Long {
+            val offset = zone.getOffset(ts)
+            return (ts + offset) / 86400000L
         }
-        
+
+        val uniqueDays = timestamps.map { toEpochDay(it) }.toSortedSet()
+        val today = toEpochDay(System.currentTimeMillis())
+
         var streak = 0
-        val rightNow = Calendar.getInstance()
-        val todayKey = (rightNow.get(Calendar.YEAR) * 1000 + rightNow.get(Calendar.DAY_OF_YEAR)).toLong()
-        
-        if (uniqueDays.contains(todayKey)) {
+        var currentDay = if (uniqueDays.contains(today)) today else today - 1
+
+        while (uniqueDays.contains(currentDay)) {
             streak++
-            var checkDay = Calendar.getInstance()
-            checkDay.add(Calendar.DAY_OF_YEAR, -1)
-            while (true) {
-                 val key = (checkDay.get(Calendar.YEAR) * 1000 + checkDay.get(Calendar.DAY_OF_YEAR)).toLong()
-                 if (uniqueDays.contains(key)) {
-                     streak++
-                     checkDay.add(Calendar.DAY_OF_YEAR, -1)
-                 } else {
-                     break
-                 }
-            }
-        } else {
-            var checkDay = Calendar.getInstance()
-            checkDay.add(Calendar.DAY_OF_YEAR, -1)
-            val yesterdayKey = (checkDay.get(Calendar.YEAR) * 1000 + checkDay.get(Calendar.DAY_OF_YEAR)).toLong()
-            
-            if (uniqueDays.contains(yesterdayKey)) {
-                streak++
-                checkDay.add(Calendar.DAY_OF_YEAR, -1) 
-                 while (true) {
-                     val key = (checkDay.get(Calendar.YEAR) * 1000 + checkDay.get(Calendar.DAY_OF_YEAR)).toLong()
-                     if (uniqueDays.contains(key)) {
-                         streak++
-                         checkDay.add(Calendar.DAY_OF_YEAR, -1)
-                     } else {
-                         break
-                     }
-                }
-            }
+            currentDay--
         }
-        
         streak
     }
 
     fun getTopPodcastsByDuration() = dao.getTopPodcastsByDuration()
 
     fun getLast7DaysActivity(): Flow<Map<Int, Long>> {
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -6)
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        val since = cal.timeInMillis
+        val zone = java.util.TimeZone.getDefault()
+        val now = System.currentTimeMillis()
+        val offset = zone.getOffset(now)
+        val todayEpochDay = (now + offset) / 86400000L
+        val startOf7DaysAgo = (todayEpochDay - 6) * 86400000L - offset
 
-        return dao.getListenedEpisodesSince(since).map { activityData ->
-             val dailyMap = mutableMapOf<Int, Long>()
-             for (i in 0..6) {
-                 val dayCal = Calendar.getInstance()
-                 dayCal.add(Calendar.DAY_OF_YEAR, -i)
-                 val dayKey = dayCal.get(Calendar.DAY_OF_YEAR)
-                 dailyMap[dayKey] = 0L
-             }
+        return dao.getListenedEpisodesSince(startOf7DaysAgo).map { activityData ->
+            val dailyMap = mutableMapOf<Int, Long>()
+            val cal = Calendar.getInstance()
+            for (i in 0..6) {
+                cal.timeInMillis = (todayEpochDay - i) * 86400000L - offset
+                val dayKey = cal.get(Calendar.DAY_OF_YEAR)
+                dailyMap[dayKey] = 0L
+            }
 
-             activityData.forEach { data ->
-                 val c = Calendar.getInstance()
-                 c.timeInMillis = data.lastPlayedTimestamp
-                 val dayKey = c.get(Calendar.DAY_OF_YEAR)
-                 if (dailyMap.containsKey(dayKey)) {
-                     dailyMap[dayKey] = (dailyMap[dayKey] ?: 0L) + (data.durationMillis ?: 0L)
-                 }
-             }
-             dailyMap
+            activityData.forEach { data ->
+                cal.timeInMillis = data.lastPlayedTimestamp
+                val dayKey = cal.get(Calendar.DAY_OF_YEAR)
+                if (dailyMap.containsKey(dayKey)) {
+                    dailyMap[dayKey] = (dailyMap[dayKey] ?: 0L) + (data.durationMillis ?: 0L)
+                }
+            }
+            dailyMap
         }
     }
     
     suspend fun getUpNext(): List<Episode> = withContext(Dispatchers.IO) {
-        val podcasts = dao.getAllPodcasts().first()
-        val upNextList = mutableListOf<Episode>()
-        for (p in podcasts) {
-            val episodes = dao.getEpisodesForPodcastAsc(p.podcast.id).first()
-            val next = episodes.firstOrNull { !it.listened }
-            if (next != null) {
-                upNextList.add(next)
-            }
-        }
-        upNextList
+        dao.getUpNextEpisodes()
     }
 
     suspend fun markEpisodeListened(episode: EpisodeListItem, listened: Boolean) {
@@ -324,29 +272,14 @@ class PodcastRepository @Inject constructor(
     }
 
     suspend fun markEpisodesListenedBatch(episodeIds: Collection<Long>, listened: Boolean) = withContext(Dispatchers.IO) {
+        if (episodeIds.isEmpty()) return@withContext
         val now = System.currentTimeMillis()
-        for (id in episodeIds) {
-            val fullEpisode = dao.getEpisodeById(id) ?: continue
-            dao.updateEpisode(fullEpisode.copy(
-                listened = listened,
-                listenedAt = if (listened) now else null,
-                lastPlayedTimestamp = if (listened) now else fullEpisode.lastPlayedTimestamp,
-                playbackPosition = if (listened) 0 else fullEpisode.playbackPosition
-            ))
-        }
+        dao.markEpisodesListenedBulk(episodeIds.toList(), listened, now)
     }
 
     suspend fun clearEpisodesTrackingBatch(episodeIds: Collection<Long>) = withContext(Dispatchers.IO) {
-        for (id in episodeIds) {
-            val fullEpisode = dao.getEpisodeById(id) ?: continue
-            dao.updateEpisode(fullEpisode.copy(
-                listened = false,
-                listenedAt = null,
-                playbackPosition = 0,
-                userRating = null,
-                userNotes = null
-            ))
-        }
+        if (episodeIds.isEmpty()) return@withContext
+        dao.clearEpisodesTrackingBulk(episodeIds.toList())
     }
 
     fun getAllPlaylistCollections(): Flow<List<PlaylistCollection>> = dao.getAllPlaylistCollections()

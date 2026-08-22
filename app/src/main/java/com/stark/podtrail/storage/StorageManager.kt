@@ -1,6 +1,7 @@
 package com.stark.podtrail.storage
 
 import com.stark.podtrail.data.PodcastDao
+import com.stark.podtrail.data.PodcastDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
@@ -29,14 +30,17 @@ data class CleanupResult(
     val spaceSavedMB: Double
 )
 
-class StorageManager(private val dao: PodcastDao) {
+class StorageManager(
+    private val dao: PodcastDao,
+    private val database: PodcastDatabase? = null
+) {
     
     suspend fun getStorageStats(): StorageStats = withContext(Dispatchers.IO) {
         val allEpisodes = dao.getAllEpisodesSync()
         val totalEpisodes = allEpisodes.size
         
-        // Estimate size (1KB avg record size)
-        val totalSizeMB = (totalEpisodes * 1024.0) / (1024 * 1024)
+        // Estimate size (average record size ~1.5KB)
+        val totalSizeMB = (totalEpisodes * 1536.0) / (1024 * 1024)
         
         val episodesWithoutDescription = dao.countShortDescriptionEpisodes()
         
@@ -61,40 +65,48 @@ class StorageManager(private val dao: PodcastDao) {
             CleanupOption.OLD_UNLISTENED_EPISODES -> {
                 val sixMonthsAgo = Clock.System.now().minus(180, DateTimeUnit.DAY, TimeZone.currentSystemDefault()).toEpochMilliseconds()
                 val deletedCount = dao.deleteOldUnlistenedEpisodes(sixMonthsAgo)
+                val estimatedSaved = (deletedCount * 1536.0) / (1024 * 1024)
                 
                 CleanupResult(
                     option = option,
                     itemsAffected = deletedCount,
-                    spaceSavedMB = deletedCount * 0.001
+                    spaceSavedMB = estimatedSaved
                 )
             }
             
             CleanupOption.TRUNCATE_DESCRIPTIONS -> {
                 val updatedCount = dao.truncateLongDescriptions()
+                val estimatedSaved = (updatedCount * 512.0) / (1024 * 1024)
                 
                 CleanupResult(
                     option = option,
                     itemsAffected = updatedCount,
-                    spaceSavedMB = updatedCount * 0.0005
+                    spaceSavedMB = estimatedSaved
                 )
             }
             
             CleanupOption.REMOVE_INACTIVE_PODCASTS -> {
                 val oneYearAgo = Clock.System.now().minus(365, DateTimeUnit.DAY, TimeZone.currentSystemDefault()).toEpochMilliseconds()
                 val deletedCount = dao.deleteInactivePodcasts(oneYearAgo)
+                val estimatedSaved = (deletedCount * 10240.0) / (1024 * 1024)
                 
                 CleanupResult(
                     option = option,
                     itemsAffected = deletedCount,
-                    spaceSavedMB = deletedCount * 0.01
+                    spaceSavedMB = estimatedSaved
                 )
             }
             
             CleanupOption.COMPACT_DATABASE -> {
+                try {
+                    dao.vacuum(androidx.room3.RoomRawQuery("VACUUM"))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 CleanupResult(
                     option = option,
                     itemsAffected = 1,
-                    spaceSavedMB = 0.5
+                    spaceSavedMB = 0.1
                 )
             }
         }

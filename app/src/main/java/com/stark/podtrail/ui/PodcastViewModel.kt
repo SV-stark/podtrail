@@ -3,7 +3,6 @@ package com.stark.podtrail.ui
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.cachedIn
 import com.stark.podtrail.data.Episode
 import com.stark.podtrail.data.EpisodeListItem
 import com.stark.podtrail.data.PodcastDatabase
@@ -25,9 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -44,10 +42,11 @@ data class Badge(
 class PodcastViewModel @Inject constructor(
     val repo: PodcastRepository,
     private val settingsRepo: SettingsRepository,
-    val database: PodcastDatabase
+    val database: PodcastDatabase,
+    private val searcher: ItunesPodcastSearcher = ItunesPodcastSearcher()
 ) : ViewModel() {
 
-    private val storageManager = StorageManager(database.podcastDao())
+    private val storageManager = StorageManager(database.podcastDao(), database)
 
     private val _storageStats = MutableStateFlow<StorageStats?>(null)
     val storageStats = _storageStats.asStateFlow()
@@ -85,10 +84,10 @@ class PodcastViewModel @Inject constructor(
     }
 
     val podcasts = repo.allPodcasts()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val favoritePodcasts = repo.favoritePodcasts()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun toggleFavorite(podcastId: Long, currentStatus: Boolean) {
         viewModelScope.launch {
@@ -111,19 +110,22 @@ class PodcastViewModel @Inject constructor(
 
     private val _sortOption = MutableStateFlow(SortOption.DATE_NEWEST)
     val sortOption = _sortOption.asStateFlow()
-    
-    private val searcher = ItunesPodcastSearcher()
-    
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
     val searchResults: StateFlow<List<SearchResult>> = _searchQuery
-        .debounce(500L)
-        .filter { it.isNotBlank() }
-        .map { query ->
-            searcher.search(query)
+        .debounce(400L)
+        .flatMapLatest { query ->
+            flow {
+                if (query.isNotBlank()) {
+                    emit(searcher.search(query))
+                } else {
+                    emit(emptyList())
+                }
+            }
         }
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _discoverPodcasts = MutableStateFlow<List<SearchResult>>(emptyList())
     val discoverPodcasts = _discoverPodcasts.asStateFlow()
@@ -189,11 +191,6 @@ class PodcastViewModel @Inject constructor(
         repo.episodesForPodcast(podcastId, option)
     }
 
-    fun episodesForPaging(podcastId: Long) = _sortOption.flatMapLatest { option ->
-        repo.episodesForPodcastPaging(podcastId, option)
-            .cachedIn(viewModelScope)
-    }
-
     suspend fun getEpisode(id: Long) = repo.getEpisode(id)
     
     fun getEpisodeFlow(id: Long) = repo.getEpisodeFlow(id)
@@ -201,9 +198,11 @@ class PodcastViewModel @Inject constructor(
     fun fetchAndUpdateDescription(episodeId: Long) {
         viewModelScope.launch {
             val ep = repo.getEpisode(episodeId) ?: return@launch
+            // Only re-fetch if description is missing or was truncated (<= 200 chars)
+            if (ep.description != null && ep.description.length > 200) return@launch
             val fullDesc = repo.fetchRemoteEpisodeDescription(ep.podcastId, ep.guid)
             if (fullDesc != null && fullDesc != ep.description) {
-                 repo.markEpisodeListened(ep.copy(description = fullDesc), ep.listened)
+                 repo.updateEpisodeDescription(ep.id, fullDesc)
             }
         }
     }
@@ -222,13 +221,13 @@ class PodcastViewModel @Inject constructor(
         }
     }
 
-    val history = repo.getHistory().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val history = repo.getHistory().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     
     val totalTimeListened = repo.getTotalTimeListened()
-        .stateIn(viewModelScope, SharingStarted.Lazily, 0L)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
         
     val allEpisodesLite = repo.getAllEpisodesLite()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun getEpisodesForMonth(year: Int, month: Int) = repo.getEpisodesForMonth(year, month)
 
@@ -239,13 +238,13 @@ class PodcastViewModel @Inject constructor(
     fun searchPodcasts(query: String) = repo.searchPodcasts(query)
         
     val currentStreak = repo.getCurrentStreak()
-        .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val weeklyActivity = repo.getLast7DaysActivity()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val topPodcasts = repo.getTopPodcastsByDuration()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
         
     val badges = combine(totalTimeListened, currentStreak, podcasts) { time, streak, podList ->
         listOf(
@@ -274,7 +273,7 @@ class PodcastViewModel @Inject constructor(
                 podList.size >= 5
             )
         )
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _upNext = MutableStateFlow<List<Episode>>(emptyList())
     val upNext = _upNext.asStateFlow()
@@ -344,7 +343,7 @@ class PodcastViewModel @Inject constructor(
     }
 
     val playlistCollections = repo.getAllPlaylistCollections()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun createPlaylistCollection(name: String, description: String? = null) {
         viewModelScope.launch {
